@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Robot Attack 3D FPS</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="blocker" class="overlay">
+        <div id="instructions" class="menu-box">
+            <h1>Robot Attack 3D FPS</h1>
+            <p>The enemy robots have attacked your city. Find a spacecraft and get away!</p>
+            
+            <div class="controls-list-intro">
+                <p><strong>Move:</strong> W, A, S, D</p>
+                <p><strong>Jump / Jetpack:</strong> SPACE</p>
+                <p><strong>Shoot:</strong> LEFT CLICK</p>
+                <p><strong>Switch Weapon:</strong> Q / E</p>
+                <p><strong>Inventory:</strong> R</p>
+                <p><strong>Interact:</strong> F</p>
+                <p><strong>Map:</strong> HOLD TAB</p>
+                <p><strong>Options:</strong> O / ESC</p>
+            </div>
+
+            <p style="font-size: 24px; margin-top: 20px;">Click or Press SPACE to Comply</p>
+            
+            <div class="options-buttons" style="margin-top: 20px;">
+                 <button id="show-touch-controls-intro">Show Touch Controls</button>
+                 <button id="options-button-intro">Options</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="options-menu" class="overlay">
+        <div id="options-content" class="menu-box">
+            <h1>OPTIONS</h1>
+            <div class="options-grid">
+                <div>
+                    <h2>CONTROLS</h2>
+                    <p><strong>Move:</strong> W, A, S, D</p>
+                    <p><strong>Jump / Jetpack:</strong> SPACE</p>
+                    <p><strong>Shoot:</strong> LEFT CLICK</p>
+                    <p><strong>Switch Weapon:</strong> Q / E</p>
+                    <p><strong>Inventory:</strong> R</p>
+                    <p><strong>Interact:</strong> F</p>
+                    <p><strong>Map:</strong> HOLD TAB</p>
+                    <p><strong>Options:</strong> O / ESC</p>
+                </div>
+                <div>
+                    <h2>AUDIO</h2>
+                    <p><label for="sfx-volume">Sound FX Volume</label></p>
+                    <input type="range" id="sfx-volume" class="volume-slider" min="0" max="1" step="0.05">
+                    <p><label for="music-volume">Music Volume</label></p>
+                    <input type="range" id="music-volume" class="volume-slider" min="0" max="1" step="0.05">
+                </div>
+            </div>
+            <div class="options-buttons">
+                <button id="show-touch-controls-options">Show Touch Controls</button>
+                <button id="fullscreen-button">Toggle Fullscreen</button>
+                <button id="restart-button-options">Restart Game</button>
+                <button id="close-options">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="touch-controls-menu" class="overlay" style="display: none;">
+        <div id="touch-controls-content" class="menu-box">
+            <h1>TOUCH CONTROLS</h1>
+            <div class="options-grid">
+                <div>
+                    <h2>MOVEMENT & CAMERA</h2>
+                    <p><strong>Move:</strong> Drag on lower-left of screen.</p>
+                    <p><strong>Look:</strong> Drag on lower-right of screen.</p>
+                </div>
+                 <div>
+                    <h2>ACTIONS</h2>
+                    <p><strong>Jump / Jetpack:</strong> Tap upper-left of screen.</p>
+                    <p><strong>Shoot:</strong> Tap upper-right of screen.</p>
+                    <p><strong>Inventory:</strong> Two-finger tap on left side.</p>
+                    <p><strong>Interact:</strong> Two-finger tap on right side.</p>
+                </div>
+            </div>
+            <div class="options-buttons">
+                <button id="close-touch-controls">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="inventory-menu" class="overlay">
+        <div id="inventory-content" class="menu-box">
+            <h1 class="menu-header">
+                <span>INVENTORY [R]</span>
+                <button id="close-inventory" class="header-close-button">&times;</button>
+            </h1>
+            <div id="inventory-grid">
+                <div class="inventory-section">
+                    <div id="inventory-weapons-list"></div>
+                    <br>
+                    <h2>ITEMS</h2>
+                    <div id="inventory-items-list"></div>
+                </div>
+                <div class="inventory-section" id="inventory-map-section">
+                    <h2>SECTOR MAP</h2>
+                    <canvas id="inventory-map-canvas" width="400" height="400"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="debug-menu" class="overlay">
+        <div id="debug-content" class="menu-box">
+            <h1>DEVELOPER CONSOLE</h1>
+            <div class="debug-grid">
+                <div class="debug-section"><h2>LEVELS</h2><div id="level-list"></div></div>
+                <div class="debug-section"><h2>ITEMS</h2><div id="item-list"></div></div>
+                <div class="debug-section"><h2>WEAPONS</h2><div id="weapon-list"></div></div>
+                <div class="debug-section"><h2>ENTITIES</h2><div id="entity-list"></div></div>
+                <div class="debug-section preview-section">
+                    <h2>PREVIEW</h2>
+                    <canvas id="preview-canvas"></canvas>
+                    <div id="preview-controls"></div>
+                    <div id="preview-description"></div>
+                    <div id="preview-slider-container">
+                        <div><label for="preview-zoom-slider">Zoom</label><br><input type="range" id="preview-zoom-slider" class="preview-slider" min="0.5" max="10" step="0.1" value="3"></div>
+                        <div><label for="preview-pan-slider">Pan Vertical</label><br><input type="range" id="preview-pan-slider" class="preview-slider" min="-1.5" max="2.5" step="0.1" value="0.5"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="options-buttons"><button id="close-debug">Close (J)</button></div>
+            <div id="debug-scrollbar-track"><div id="debug-scrollbar-thumb"></div></div>
+        </div>
+    </div>
+
+    <div id="damage-flash"></div>
+    <div id="map-container"><canvas id="map-canvas" width="500" height="500"></canvas></div>
+    <div id="interaction-prompt"></div>
+    <div id="cockpit-overlay"></div>
+    <div id="worm-attack-overlay"></div>
+    <div id="doom-hud">
+        <div class="hud-panel hud-left">
+            <div id="weapon-display-container"></div>
+            <span id="ammo">Infinity</span>
+        </div>
+        <div class="hud-panel hud-center">
+            <canvas id="health-icon"></canvas>
+            <span id="health">100</span>
+            <div id="jetpack-hud-container">
+                <canvas id="jetpack-icon"></canvas>
+                <div id="jetpack-bar-container"><div id="jetpack-bar"></div></div>
+            </div>
+        </div>
+        <div class="hud-panel hud-right">
+             <div id="fuel-cell-hud">
+                <canvas id="fuel-cell-icon"></canvas>
+                <span id="fuel-cells">0</span>
+            </div>
+            <span>SCORE:</span>
+            <span id="score">0</span>
+        </div>
+    </div>
+    <div id="crosshair"></div>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <!-- Game Data Scripts -->
+    <script src="game-data.js"></script>
+    <script src="game-weapons.js"></script>
+    <script src="game-enemies.js"></script>
+    <script src="game-world.js"></script>
+    
+    <!-- Game Logic & Systems Scripts -->
+    <script src="player-controls.js"></script>
+    <script src="ui-and-hud.js"></script>
+    <script src="game-logic.js"></script>
+    
+    <!-- Main Engine Script (must be loaded last) -->
+    <script src="main.js"></script>
+</body>
+</html>
