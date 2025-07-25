@@ -49,7 +49,13 @@ function setupControls() {
         camera.updateProjectionMatrix();
     };
     const onKeyDown = (event) => {
-        if (isGameOver && event.code === 'Space') { event.preventDefault(); restartGame(); return; }
+        // MODIFIED: Restart on any key except options/escape when game is over
+        if (isGameOver && event.key !== 'Escape' && event.code !== 'KeyO') { 
+            event.preventDefault(); 
+            restartGame(); 
+            return; 
+        }
+
         if (!controls.isLocked && !isGameOver && (event.code === 'Space' || event.key === ' ')) {
             if (!hasInteracted) { 
                 if(backgroundMusic) backgroundMusic.play(); 
@@ -147,6 +153,16 @@ function setupControls() {
         if (e.target.nodeName === 'BUTTON') return;
         onBlockerInteract(e);
     });
+
+    const closeIntroButton = document.getElementById('close-intro');
+    const closeIntroHandler = (e) => {
+        e.stopPropagation();
+        document.getElementById('blocker').style.display = 'none';
+    };
+    if (closeIntroButton) {
+        closeIntroButton.addEventListener('click', closeIntroHandler);
+        closeIntroButton.addEventListener('touchend', closeIntroHandler);
+    }
 
     const closeOptions = () => toggleOptionsMenu(false);
     document.getElementById('close-options').addEventListener('click', closeOptions);
