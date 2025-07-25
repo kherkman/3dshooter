@@ -10,8 +10,6 @@ const levelOrder = ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'];
 const touchState = {
     move: { id: null, startX: 0, startY: 0, currentX: 0, currentY: 0 },
     look: { id: null, startX: 0, startY: 0, lastX: 0, lastY: 0 },
-    jump: { id: null },
-    shoot: { id: null },
     lastDoubleTap: 0,
 };
 
@@ -228,18 +226,15 @@ function setupControls() {
     const onTouchStart = (event) => {
         if (isGameOver || isPaused) return;
         const currentTime = Date.now();
+        
+        // MODIFIED: Interact is now a two-finger tap anywhere
         if(event.touches.length === 2 && currentTime - touchState.lastDoubleTap > 500) {
             touchState.lastDoubleTap = currentTime;
-            const touch1 = event.touches[0];
-            const isLeftSide = touch1.clientX < window.innerWidth / 2;
-            if (isLeftSide) {
-                toggleInventoryMenu(); // Like 'R' key
-            } else {
-                 keys['KeyF'] = true; // Like 'F' key
-                 fKeyPressed = true;
-                 setTimeout(() => { keys['KeyF'] = false; fKeyPressed = false; }, 100);
-            }
-            return;
+            // Trigger 'F' key for interaction
+            keys['KeyF'] = true; 
+            fKeyPressed = true;
+            setTimeout(() => { keys['KeyF'] = false; fKeyPressed = false; }, 100);
+            return; // Prevent other touch actions from firing
         }
 
         for (const touch of event.changedTouches) {
@@ -262,16 +257,6 @@ function setupControls() {
                 touchState.look.lastX = touch.clientX;
                 touchState.look.lastY = touch.clientY;
             } 
-            // Upper-left for jumping
-            else if (touch.clientX < halfWidth && touch.clientY <= halfHeight && touchState.jump.id === null) {
-                touchState.jump.id = touch.identifier;
-                keys['Space'] = true;
-            }
-            // Upper-right for shooting
-            else if (touch.clientX >= halfWidth && touch.clientY <= halfHeight && touchState.shoot.id === null) {
-                touchState.shoot.id = touch.identifier;
-                mouse.isDown = true;
-            }
         }
     };
 
@@ -312,12 +297,6 @@ function setupControls() {
                 keys['KeyW'] = false; keys['KeyS'] = false; keys['KeyA'] = false; keys['KeyD'] = false;
             } else if (touch.identifier === touchState.look.id) {
                 touchState.look.id = null;
-            } else if (touch.identifier === touchState.jump.id) {
-                touchState.jump.id = null;
-                keys['Space'] = false;
-            } else if (touch.identifier === touchState.shoot.id) {
-                touchState.shoot.id = null;
-                mouse.isDown = false;
             }
         }
     };
@@ -330,7 +309,23 @@ function setupControls() {
     // --- MOUSE/KEYBOARD LISTENERS (Continued) ---
     controls = { isLocked: false }; document.addEventListener('mousemove', onMouseMove, false); document.addEventListener('keydown', onKeyDown); document.addEventListener('keyup', onKeyUp); document.addEventListener('wheel', onMouseWheel, { passive: false }); document.addEventListener('mousedown', () => { if(controls.isLocked) mouse.isDown = true; }); document.addEventListener('mouseup', () => mouse.isDown = false); document.addEventListener('click', () => { if (controls.isLocked && !isGameOver && !isPaused && player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) shoot(); });
     
-    // --- TOUCH CONTROLS MENU BUTTONS ---
+    // --- HUD & TOUCH CONTROLS MENU BUTTONS ---
+    
+    // MODIFIED: Inventory HUD button listener
+    const inventoryButton = document.getElementById('inventory-button-hud');
+    inventoryButton.addEventListener('click', toggleInventoryMenu);
+    inventoryButton.addEventListener('touchstart', (e) => { e.preventDefault(); toggleInventoryMenu(); });
+
+    // MODIFIED: Jump HUD button listeners
+    const jumpButton = document.getElementById('jump-button-hud');
+    jumpButton.addEventListener('touchstart', (e) => { e.preventDefault(); keys['Space'] = true; });
+    jumpButton.addEventListener('touchend', (e) => { e.preventDefault(); keys['Space'] = false; });
+    
+    // MODIFIED: Shoot HUD button listeners
+    const shootButton = document.getElementById('shoot-button-hud');
+    shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); mouse.isDown = true; });
+    shootButton.addEventListener('touchend', (e) => { e.preventDefault(); mouse.isDown = false; });
+
     const showTouchControls = () => { document.getElementById('touch-controls-menu').style.display = 'flex'; };
     document.getElementById('show-touch-controls-intro').addEventListener('click', showTouchControls);
     document.getElementById('show-touch-controls-intro').addEventListener('touchend', showTouchControls);
