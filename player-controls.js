@@ -315,11 +315,16 @@ function setupControls() {
     const jumpButton = document.getElementById('jump-button-hud');
     jumpButton.addEventListener('touchstart', (e) => { e.preventDefault(); keys['Space'] = true; });
     jumpButton.addEventListener('touchend', (e) => { e.preventDefault(); keys['Space'] = false; });
+    jumpButton.addEventListener('mousedown', (e) => { e.preventDefault(); keys['Space'] = true; });
+    jumpButton.addEventListener('mouseup', (e) => { e.preventDefault(); keys['Space'] = false; });
+
     
     // Shoot HUD button listeners
     const shootButton = document.getElementById('shoot-button-hud');
     shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); mouse.isDown = true; });
     shootButton.addEventListener('touchend', (e) => { e.preventDefault(); mouse.isDown = false; });
+    shootButton.addEventListener('mousedown', (e) => { e.preventDefault(); mouse.isDown = true; });
+    shootButton.addEventListener('mouseup', (e) => { e.preventDefault(); mouse.isDown = false; });
 
     // Interaction Prompt Listener for Touch
     const interactionPromptElement = document.getElementById('interaction-prompt');
