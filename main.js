@@ -266,9 +266,26 @@ function gameOver(message = "COMPLIANCE FAILED") {
     controls.isLocked = false;
     if (document.pointerLockElement) document.exitPointerLock();
     const blocker = document.getElementById('blocker');
-    blocker.innerHTML = `<div class="menu-box"><h1>${message}</h1><p>Final Score: ${score}</p><p style="font-size: 24px; margin-top: 20px;">Click or Press SPACE to Restart</p><div class="options-buttons" style="margin-top:20px;"><button id="options-button-gameover">Options</button></div></div>`;
+    blocker.innerHTML = `<div class="menu-box">
+                            <h1 class="menu-header">
+                                <span>${message}</span>
+                                <button id="close-gameover" class="header-close-button">&times;</button>
+                            </h1>
+                            <p>Final Score: ${score}</p>
+                            <p style="font-size: 24px; margin-top: 20px;">Click or Press SPACE to Restart</p>
+                            <div class="options-buttons" style="margin-top:20px;">
+                                <button id="options-button-gameover">Options</button>
+                            </div>
+                        </div>`;
     blocker.style.display = 'flex';
     blocker.style.flexDirection = 'column';
+
+    const closeGameOverButton = document.getElementById('close-gameover');
+    if(closeGameOverButton) {
+        closeGameOverButton.addEventListener('click', () => {
+             document.getElementById('blocker').style.display = 'none';
+        });
+    }
 }
 
 function winGame() {
