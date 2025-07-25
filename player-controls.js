@@ -225,10 +225,17 @@ function setupControls() {
     // --- TOUCH CONTROLS SETUP ---
     const onTouchStart = (event) => {
         if (isGameOver || isPaused) return;
-        
+
         for (const touch of event.changedTouches) {
-            const halfWidth = window.innerWidth / 2;
+            // If this specific touch started on a HUD button, skip joystick logic for it.
+            // The button's own event listener will handle its action.
+            const targetId = touch.target.id;
+            if (targetId === 'jump-button-hud' || targetId === 'shoot-button-hud' || targetId === 'inventory-button-hud') {
+                continue;
+            }
             
+            const halfWidth = window.innerWidth / 2;
+
             // Left side for movement
             if (touch.clientX < halfWidth && touchState.move.id === null) {
                 touchState.move.id = touch.identifier;
@@ -236,7 +243,7 @@ function setupControls() {
                 touchState.move.startY = touch.clientY;
                 touchState.move.currentX = touch.clientX;
                 touchState.move.currentY = touch.clientY;
-            } 
+            }
             // Right side for looking
             else if (touch.clientX >= halfWidth && touchState.look.id === null) {
                 touchState.look.id = touch.identifier;
@@ -244,7 +251,7 @@ function setupControls() {
                 touchState.look.startY = touch.clientY;
                 touchState.look.lastX = touch.clientX;
                 touchState.look.lastY = touch.clientY;
-            } 
+            }
         }
     };
 
