@@ -42,7 +42,6 @@ function generateWeaponSprites() {
 function updateHUD() {
     if(player.state !== 'on_foot' && player.state !== 'driving_motorcycle') return;
     document.getElementById('health').textContent = Math.max(0, Math.round(health));
-    document.getElementById('score').textContent = score;
     document.getElementById('fuel-cells').textContent = player.fuelCells;
     
     const ammoElement = document.getElementById('ammo');
