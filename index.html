@@ -78,10 +78,10 @@
                 </div>
                  <div>
                     <h2>ACTIONS</h2>
-                    <p><strong>Jump / Jetpack:</strong> Tap upper-left of screen.</p>
-                    <p><strong>Shoot:</strong> Tap upper-right of screen.</p>
-                    <p><strong>Inventory:</strong> Two-finger tap on left side.</p>
-                    <p><strong>Interact:</strong> Two-finger tap on right side.</p>
+                    <p><strong>Jump / Jetpack:</strong> Use JUMP button on HUD.</p>
+                    <p><strong>Shoot:</strong> Use SHOOT button on HUD.</p>
+                    <p><strong>Inventory:</strong> Use INV button on HUD.</p>
+                    <p><strong>Interact:</strong> Two-finger tap anywhere on screen.</p>
                 </div>
             </div>
             <div class="options-buttons">
@@ -142,6 +142,7 @@
     <div id="worm-attack-overlay"></div>
     <div id="doom-hud">
         <div class="hud-panel hud-left">
+            <button id="inventory-button-hud" class="hud-button">INV</button>
             <div id="weapon-display-container"></div>
             <span id="ammo">Infinity</span>
         </div>
@@ -158,8 +159,8 @@
                 <canvas id="fuel-cell-icon"></canvas>
                 <span id="fuel-cells">0</span>
             </div>
-            <span>SCORE:</span>
-            <span id="score">0</span>
+            <button id="jump-button-hud" class="hud-button">JUMP</button>
+            <button id="shoot-button-hud" class="hud-button">SHOOT</button>
         </div>
     </div>
     <div id="crosshair"></div>
