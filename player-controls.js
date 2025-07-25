@@ -225,32 +225,20 @@ function setupControls() {
     // --- TOUCH CONTROLS SETUP ---
     const onTouchStart = (event) => {
         if (isGameOver || isPaused) return;
-        const currentTime = Date.now();
         
-        // MODIFIED: Interact is now a two-finger tap anywhere
-        if(event.touches.length === 2 && currentTime - touchState.lastDoubleTap > 500) {
-            touchState.lastDoubleTap = currentTime;
-            // Trigger 'F' key for interaction
-            keys['KeyF'] = true; 
-            fKeyPressed = true;
-            setTimeout(() => { keys['KeyF'] = false; fKeyPressed = false; }, 100);
-            return; // Prevent other touch actions from firing
-        }
-
         for (const touch of event.changedTouches) {
             const halfWidth = window.innerWidth / 2;
-            const halfHeight = window.innerHeight / 2;
             
-            // Lower-left for movement
-            if (touch.clientX < halfWidth && touch.clientY > halfHeight && touchState.move.id === null) {
+            // Left side for movement
+            if (touch.clientX < halfWidth && touchState.move.id === null) {
                 touchState.move.id = touch.identifier;
                 touchState.move.startX = touch.clientX;
                 touchState.move.startY = touch.clientY;
                 touchState.move.currentX = touch.clientX;
                 touchState.move.currentY = touch.clientY;
             } 
-            // Lower-right for looking
-            else if (touch.clientX >= halfWidth && touch.clientY > halfHeight && touchState.look.id === null) {
+            // Right side for looking
+            else if (touch.clientX >= halfWidth && touchState.look.id === null) {
                 touchState.look.id = touch.identifier;
                 touchState.look.startX = touch.clientX;
                 touchState.look.startY = touch.clientY;
@@ -311,20 +299,30 @@ function setupControls() {
     
     // --- HUD & TOUCH CONTROLS MENU BUTTONS ---
     
-    // MODIFIED: Inventory HUD button listener
+    // Inventory HUD button listener
     const inventoryButton = document.getElementById('inventory-button-hud');
     inventoryButton.addEventListener('click', toggleInventoryMenu);
     inventoryButton.addEventListener('touchstart', (e) => { e.preventDefault(); toggleInventoryMenu(); });
 
-    // MODIFIED: Jump HUD button listeners
+    // Jump HUD button listeners
     const jumpButton = document.getElementById('jump-button-hud');
     jumpButton.addEventListener('touchstart', (e) => { e.preventDefault(); keys['Space'] = true; });
     jumpButton.addEventListener('touchend', (e) => { e.preventDefault(); keys['Space'] = false; });
     
-    // MODIFIED: Shoot HUD button listeners
+    // Shoot HUD button listeners
     const shootButton = document.getElementById('shoot-button-hud');
     shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); mouse.isDown = true; });
     shootButton.addEventListener('touchend', (e) => { e.preventDefault(); mouse.isDown = false; });
+
+    // Interaction Prompt Listener for Touch
+    const interactionPromptElement = document.getElementById('interaction-prompt');
+    const handleInteractionPromptTouch = (e) => {
+        e.preventDefault();
+        keys['KeyF'] = true;
+        fKeyPressed = true;
+        setTimeout(() => { keys['KeyF'] = false; fKeyPressed = false; }, 100);
+    };
+    interactionPromptElement.addEventListener('touchstart', handleInteractionPromptTouch);
 
     const showTouchControls = () => { document.getElementById('touch-controls-menu').style.display = 'flex'; };
     document.getElementById('show-touch-controls-intro').addEventListener('click', showTouchControls);
@@ -636,6 +634,8 @@ function throwCarriedObject() {
 
 function updateInteractions() {
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const interactionPromptElement = document.getElementById('interaction-prompt');
+
     if ((!controls.isLocked && !isTouchDevice) || player.state !== 'on_foot') {
         interactionPromptElement.style.display = 'none';
         return;
@@ -643,7 +643,10 @@ function updateInteractions() {
 
     if (player.carriedObject) {
         interactionPromptElement.style.display = 'block';
-        interactionPromptElement.textContent = `[F] to Throw ${player.carriedObject.userData.name || 'Object'}`;
+        const prompt = isTouchDevice 
+            ? `Throw ${player.carriedObject.userData.name || 'Object'}`
+            : `[F] to Throw ${player.carriedObject.userData.name || 'Object'}`;
+        interactionPromptElement.textContent = prompt;
         if (keys['KeyF']) {
             throwCarriedObject();
             keys['KeyF'] = false; // Consume the keypress
@@ -661,10 +664,17 @@ function updateInteractions() {
             closestInteractable = inter;
         }
     });
+
     if (closestInteractable) {
-        const promptText = closestInteractable.getPrompt();
+        let promptText = closestInteractable.getPrompt();
+        if (!isTouchDevice) {
+            // Add "[F]" for non-touch devices, unless it's the complex spacecraft message
+            if (!promptText.startsWith("The spacecraft")) {
+                promptText = `[F] ${promptText}`;
+            }
+        }
         interactionPromptElement.style.display = 'block';
-        interactionPromptElement.textContent = promptText.startsWith("The spacecraft") ? promptText : `[F] ${promptText}`;
+        interactionPromptElement.textContent = promptText;
         if (keys['KeyF']) {
             closestInteractable.onInteract();
             keys['KeyF'] = false;
