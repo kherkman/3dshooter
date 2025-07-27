@@ -60,6 +60,7 @@
             </div>
             <div class="options-buttons">
                 <button id="show-touch-controls-options">Show Touch Controls</button>
+                <button id="toggle-touch-button">Touch Controls: ON</button>
                 <button id="fullscreen-button">Toggle Fullscreen</button>
                 <button id="restart-button-options">Restart Game</button>
                 <button id="close-options">Close</button>
@@ -70,18 +71,43 @@
     <div id="touch-controls-menu" class="overlay" style="display: none;">
         <div id="touch-controls-content" class="menu-box">
             <h1>TOUCH CONTROLS</h1>
-            <div class="options-grid">
+
+            <div id="touch-screen-layout">
+                <div id="touch-diagram">
+                    <div class="touch-zone move-zone">
+                        <p>MOVE</p>
+                        <span>(Left 30%)</span>
+                    </div>
+                    <div class="touch-zone action-zone">
+                        <div class="action-sub-zone jump-zone"><p>JUMP / JETPACK</p></div>
+                        <div class="action-sub-zone shoot-zone"><p>SHOOT</p></div>
+                        <span>(Center 40%)</span>
+                    </div>
+                    <div class="touch-zone look-zone">
+                        <p>LOOK</p>
+                        <span>(Right 30%)</span>
+                    </div>
+                </div>
+                <div id="touch-hud-area-label">
+                    <p>HUD AREA</p>
+                </div>
+            </div>
+
+
+            <div class="options-grid" style="margin-top: 20px;">
                 <div>
-                    <h2>MOVEMENT & CAMERA</h2>
-                    <p><strong>Move:</strong> Drag anywhere on the left side of the screen.</p>
-                    <p><strong>Look:</strong> Drag anywhere on the right side of the screen.</p>
+                    <h2>CONTROLS</h2>
+                    <p><strong>Move:</strong> Drag in the left zone.</p>
+                    <p><strong>Look:</strong> Drag in the right zone.</p>
+                    <p><strong>Jump / Jetpack:</strong> Tap the top-center of the screen.</p>
+                    <p><strong>Shoot:</strong> Tap/Hold bottom-center or the weapon icon on the HUD.</p>
                 </div>
                  <div>
-                    <h2>ACTIONS</h2>
-                    <p><strong>Jump / Jetpack:</strong> Use JUMP button on HUD.</p>
-                    <p><strong>Shoot:</strong> Use SHOOT button on HUD.</p>
-                    <p><strong>Inventory:</strong> Use INV button on HUD.</p>
-                    <p><strong>Interact:</strong> Tap the on-screen text prompts (e.g., "Drive Hoverbike").</p>
+                    <h2>HUD BUTTONS</h2>
+                    <p><strong>Switch Weapon:</strong> Use the &lt; and &gt; buttons on the HUD.</p>
+                    <p><strong>Goggles:</strong> Tap the goggles icon on the HUD to toggle.</p>
+                    <p><strong>Inventory:</strong> Use the INV button on the HUD.</p>
+                    <p><strong>Interact:</strong> Tap the on-screen text prompts.</p>
                 </div>
             </div>
             <div class="options-buttons">
@@ -89,6 +115,7 @@
             </div>
         </div>
     </div>
+
 
     <div id="inventory-menu" class="overlay">
         <div id="inventory-content" class="menu-box">
@@ -140,13 +167,23 @@
     <div id="interaction-prompt"></div>
     <div id="cockpit-overlay"></div>
     <div id="worm-attack-overlay"></div>
+
     <div id="doom-hud">
         <div class="hud-panel hud-left">
             <button id="inventory-button-hud" class="hud-button">INV</button>
-            <div id="weapon-display-container"></div>
-            <span id="ammo">Infinity</span>
+            <div id="fuel-cell-hud" class="hud-item-container">
+                <canvas id="fuel-cell-icon"></canvas>
+                <span id="fuel-cells">0</span>
+            </div>
+            <div id="goggles-hud-container" class="hud-item-container">
+                <canvas id="goggles-icon"></canvas>
+                <div id="goggles-bar-container">
+                    <div id="goggles-bar"></div>
+                </div>
+            </div>
         </div>
         <div class="hud-panel hud-center">
+            <div id="attack-indicator"></div>
             <canvas id="health-icon"></canvas>
             <span id="health">100</span>
             <div id="jetpack-hud-container">
@@ -155,32 +192,27 @@
             </div>
         </div>
         <div class="hud-panel hud-right">
-             <div id="fuel-cell-hud">
-                <canvas id="fuel-cell-icon"></canvas>
-                <span id="fuel-cells">0</span>
-            </div>
-            <button id="jump-button-hud" class="hud-button">JUMP</button>
-            <button id="shoot-button-hud" class="hud-button">SHOOT</button>
+            <button id="weapon-prev-hud" class="hud-button">&lt;</button>
+            <div id="weapon-display-container"></div>
+            <button id="weapon-next-hud" class="hud-button">&gt;</button>
+            <span id="ammo">&infin;</span>
         </div>
     </div>
+
     <div id="crosshair"></div>
 
-    <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
-    <!-- Game Data Scripts -->
     <script src="game-data.js"></script>
     <script src="game-weapons.js"></script>
     <script src="game-enemies.js"></script>
     <script src="game-world.js"></script>
     
-    <!-- Game Logic & Systems Scripts -->
     <script src="player-controls.js"></script>
     <script src="ui-and-hud.js"></script>
     <script src="game-logic.js"></script>
     
-    <!-- Main Engine Script (must be loaded last) -->
     <script src="main.js"></script>
 </body>
 </html>
