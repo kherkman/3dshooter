@@ -7,6 +7,7 @@ function setupHUD() {
     GameData.items.health.hudIcon(document.getElementById('health-icon').getContext('2d'));
     GameData.items.jetpack.hudIcon(document.getElementById('jetpack-icon').getContext('2d'));
     GameData.items.fuel_cell.hudIcon(document.getElementById('fuel-cell-icon').getContext('2d'));
+    GameData.items.xray_goggles.hudIcon(document.getElementById('goggles-icon').getContext('2d'));
     generateWeaponSprites();
 }
 
@@ -14,7 +15,7 @@ function generateWeaponSprites() {
     const weaponDisplayContainer = document.getElementById('weapon-display-container');
     weaponDisplayContainer.innerHTML = '';
     const spriteScene = new THREE.Scene();
-    spriteScene.background = null;
+    spriteScene.background = new THREE.Color(0xd3d3d3); 
     const spriteCam = new THREE.PerspectiveCamera(50, 2, 0.1, 100);
     spriteCam.position.set(0.5, 0.2, 2.5);
     const light1 = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -22,11 +23,11 @@ function generateWeaponSprites() {
     const light2 = new THREE.AmbientLight(0xffffff, 0.5);
     spriteScene.add(light1, light2);
     const tempRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    tempRenderer.setSize(120, 60);
+    tempRenderer.setSize(240, 120); 
     GameData.weapons.forEach((weapon, index) => {
         const model = weapon.model(false);
         model.position.set(0,0,0);
-        model.rotation.set(0.1,0.2,0);
+        model.rotation.set(0.1, 0.2 + Math.PI / 2, 0); 
         spriteScene.add(model);
         tempRenderer.render(spriteScene, spriteCam);
         const img = new Image();
@@ -46,40 +47,87 @@ function updateHUD() {
     
     const ammoElement = document.getElementById('ammo');
     const crosshairElement = document.getElementById('crosshair');
+    const gogglesContainer = document.getElementById('goggles-hud-container');
+    const gogglesBar = document.getElementById('goggles-bar');
+    const allWeaponSprites = document.querySelectorAll('.weapon-hud-sprite');
 
     if (player.carriedObject) {
         ammoElement.textContent = `CARRYING`;
         document.getElementById('weapon-display-container').style.opacity = 0.3;
         crosshairElement.className = 'crosshair';
         crosshairElement.innerHTML = '';
+        allWeaponSprites.forEach(sprite => {
+            sprite.style.display = 'none';
+            sprite.classList.remove('weapon-active');
+        });
     } else {
         const w = GameData.weapons[player.currentWeaponIndex];
         const a = player.ammo[w.properties.ammoType];
-        ammoElement.textContent = Number.isFinite(a) ? a : '∞';
+        ammoElement.innerHTML = Number.isFinite(a) ? a : '&infin;';
         document.getElementById('weapon-display-container').style.opacity = 1.0;
 
         if (w.name === 'Sniper Rifle') {
-            const zoomProps = w.properties.zoom;
-            const zoomRange = zoomProps.max - zoomProps.min;
-            const currentZoom = zoomProps.max - camera.fov;
-            const zoomPercent = Math.max(0, (currentZoom / zoomRange) * 100);
-
-            crosshairElement.className = 'crosshair sniper-scope';
-            crosshairElement.innerHTML = `
-                <div class="sniper-line-v"></div>
-                <div class="sniper-line-h"></div>
-                <div class="sniper-dot"></div>
-                ${camera.fov < zoomProps.max ? `<div class="sniper-zoom-text">${zoomPercent.toFixed(0)}%</div>` : ''}
-            `;
+            crosshairElement.className = 'crosshair sniper-scope-alt';
+            crosshairElement.innerHTML = '';
         } else {
             crosshairElement.className = 'crosshair';
             crosshairElement.innerHTML = '';
         }
+        
+        allWeaponSprites.forEach((sprite, index) => {
+            const isCurrentWeapon = index === player.currentWeaponIndex;
+            sprite.style.display = isCurrentWeapon ? 'block' : 'none';
+            if (isCurrentWeapon) {
+                sprite.classList.add('weapon-active');
+            } else {
+                sprite.classList.remove('weapon-active');
+            }
+        });
     }
 
     if (player.hasJetpack) {
         document.getElementById('jetpack-bar').style.width = `${(player.jetpackFuel / player.maxJetpackFuel) * 100}%`;
     }
+
+    if (player.hasXRayGoggles) {
+        gogglesContainer.style.display = 'flex';
+        gogglesContainer.classList.toggle('goggles-active', player.xrayGogglesActive);
+        gogglesContainer.classList.toggle('goggles-cooldown', player.gogglesCooldown > 0);
+        if (player.gogglesCooldown > 0) {
+            gogglesBar.style.width = `${(player.gogglesCooldown / 30) * 100}%`;
+            gogglesBar.style.backgroundColor = '#ff4444';
+        } else {
+            gogglesBar.style.width = `${(player.gogglesBattery / player.maxGogglesBattery) * 100}%`;
+            gogglesBar.style.backgroundColor = '#00ff00';
+        }
+    } else {
+        gogglesContainer.style.display = 'none';
+    }
+}
+
+function updateAttackIndicator() {
+    if (!lastAttackerPosition || !attackIndicator) return;
+
+    // Convert attacker position to local space of the player object
+    const localAttackerPos = playerObject.worldToLocal(lastAttackerPosition.clone());
+
+    // Calculate angle on the XZ plane
+    const angle = Math.atan2(localAttackerPos.x, localAttackerPos.z);
+    
+    // Apply rotation to the indicator (plus 180 degrees to point from the center)
+    attackIndicator.style.transform = `translateY(-50%) rotate(${angle}rad)`;
+    attackIndicator.style.opacity = 1;
+
+    // Clear any existing timeout
+    if (attackIndicatorTimeout) clearTimeout(attackIndicatorTimeout);
+
+    // Set a new timeout to hide the indicator
+    attackIndicatorTimeout = setTimeout(() => {
+        attackIndicator.style.opacity = 0;
+    }, 2000);
+
+    // Reset the attacker position so this only runs once per hit
+    lastAttackerPosition = null;
 }
 
 function updateInventoryMenu() {
@@ -106,7 +154,7 @@ function updateInventoryMenu() {
     });
     if (player.hasJetpack) {
         itemsList.innerHTML += `<div class="inventory-item">
-            <img src="${document.getElementById('jetpack-icon').toDataURL()}">
+            <img src="${document.getElementById('jetpack-icon').toDataURL()}" style="width: 60px; height: 60px; object-fit: contain;">
             <div class="inventory-item-info"><p class="item-name">Jetpack</p><p class="item-detail">Fuel: ${Math.round(player.jetpackFuel)}%</p></div>
         </div>`;
     }
@@ -117,11 +165,18 @@ function updateInventoryMenu() {
         </div>`;
     }
     if (player.hasXRayGoggles) {
+        let detailText = '';
+        if (player.gogglesCooldown > 0) {
+            detailText = `Cooldown: ${player.gogglesCooldown.toFixed(1)}s`;
+        } else {
+            const batteryPercent = Math.round((player.gogglesBattery / player.maxGogglesBattery) * 100);
+            detailText = `Battery: ${batteryPercent}% - Status: ${player.xrayGogglesActive ? 'ON' : 'OFF'}`;
+        }
         itemsList.innerHTML += `<div class="inventory-item ${player.xrayGogglesActive ? 'item-active' : ''}" data-item-key="xray_goggles">
-            <img src="">
+            <img src="${document.getElementById('goggles-icon').toDataURL()}">
             <div class="inventory-item-info">
                 <p class="item-name">X-Ray Goggles</p>
-                <p class="item-detail">Status: ${player.xrayGogglesActive ? 'ON' : 'OFF'}</p>
+                <p class="item-detail">${detailText}</p>
             </div>
         </div>`;
     }
@@ -156,7 +211,7 @@ function createMapBackground() {
 function updateMap(ctx = mapCtx, width = mapCanvas.width, height = mapCanvas.height) {
     const mapInfo = GameWorld.levels[currentLevel].map;
     const mapSize = mapInfo.size;
-    if(ctx === mapCtx) ctx.drawImage(mapBackgroundCanvas, 0, 0); // Redraw background only for main map
+    if(ctx === mapCtx) ctx.drawImage(mapBackgroundCanvas, 0, 0); 
     const worldToMap = (pos) => ({
         x: (pos.x + mapSize / 2) / mapSize * width,
         y: (pos.z + mapSize / 2) / mapSize * height
@@ -236,7 +291,11 @@ function initDebugMenu() {
         const container = document.createElement('div');
         container.className = 'weapon-list-item';
         const originalSprite = document.getElementById(`weapon-sprite-${index}`);
-        if(originalSprite) container.appendChild(originalSprite.cloneNode());
+        if(originalSprite) {
+            const img = new Image();
+            img.src = originalSprite.src;
+            container.appendChild(img);
+        }
         const name = document.createElement('p');
         name.textContent = weapon.name;
         container.appendChild(name);
@@ -245,7 +304,7 @@ function initDebugMenu() {
     });
     
     Object.entries(GameData.items).forEach(([key, item]) => {
-        if (item.name.toLowerCase().includes('ammo')) return; // Don't list ammo as a previewable item
+        if (item.name.toLowerCase().includes('ammo')) return; 
         const btn = document.createElement('button');
         btn.className = 'debug-list-button';
         btn.textContent = item.name;
@@ -341,6 +400,18 @@ function setupPreviewRendererAndStart() {
     previewCamera.position.set(0, parseFloat(panSlider.value), 6.5 - parseFloat(zoomSlider.value));
     previewRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     previewRenderer.setSize(width, height);
+
+    let isDraggingPreview = false;
+    canvas.addEventListener('mousedown', () => { isDraggingPreview = true; });
+    canvas.addEventListener('mouseup', () => { isDraggingPreview = false; });
+    canvas.addEventListener('mouseleave', () => { isDraggingPreview = false; });
+    canvas.addEventListener('mousemove', (event) => {
+        if (isDraggingPreview && previewObject && previewAnimationState === null) {
+            previewObject.rotation.y += event.movementX * 0.01;
+            previewObject.rotation.x += event.movementY * 0.01;
+        }
+    });
+
     updatePreview();
 }
 
@@ -388,6 +459,16 @@ function showInPreview(category, key) {
                 const enemy = GameData.enemies[key];
                 model = enemy.model();
                 description = enemy.description;
+                model.userData.type = key; // Crucial fix for animations
+                if (key === 'predator' && model.userData.material) {
+                    model.userData.material.opacity = 0.9;
+                    const btn = document.createElement('button');
+                    btn.textContent = 'Mouth Animate';
+                    btn.onclick = () => {
+                        previewAnimationState = 'mouth_animate';
+                    };
+                    controlsContainer.appendChild(btn);
+                }
                 if (key === 'cyborg' && enemy.animations) {
                     model.scale.set(0.8,0.8,0.8); panSlider.value=1.2; model.userData.isPreview = true;
                     Object.keys(enemy.animations).filter(k=>!k.startsWith('_')).forEach(anim => {
@@ -404,7 +485,7 @@ function showInPreview(category, key) {
                 } else if(key === 'tentacle') {
                     model.scale.set(0.8, 0.8, 0.8);
                     previewObject = model;
-                    model.position.y = -10; // Start hidden
+                    model.position.y = -10; 
                     ['Emerge', 'Wave', 'Retract'].forEach(anim => {
                         const btn = document.createElement('button');
                         btn.textContent = anim;
@@ -417,7 +498,7 @@ function showInPreview(category, key) {
             previewCamera.position.z = 6.5 - parseFloat(zoomSlider.value);
             break;
     }
-    if(model && key !== 'tentacle') { // Tentacle is handled specially
+    if(model && key !== 'tentacle') { 
         previewObject = model;
         previewObject.position.set(0, 0, 0);
         previewObject.rotation.set(0, 0, 0);
@@ -432,36 +513,39 @@ function updatePreview() {
     previewAnimationId = requestAnimationFrame(updatePreview);
     if (previewObject) {
         if (previewAnimationState === null) {
-            previewObject.rotation.y += 0.01;
+            // Rotation is now handled by mouse drag, so we keep it static here.
         } else {
             const delta = previewClock.getDelta();
             const anims = GameData.enemies[previewObject.userData.type]?.animations;
 
-            switch(previewAnimationState) {
-                // Cyborg
-                case 'idle': anims.idle(previewObject); break;
-                case 'walk': anims.walk(previewObject, previewClock.getElapsedTime()); break;
-                case 'shoot':
-                    previewObject.userData.animationProgress = (previewObject.userData.animationProgress || 0) + delta * 2.0;
-                    if(previewObject.userData.animationProgress >= 1) previewObject.userData.animationProgress = 0;
-                    anims.shoot(previewObject, previewObject.userData.animationProgress);
-                    break;
-                case 'death':
-                    previewObject.userData.animationProgress = (previewObject.userData.animationProgress || 0) + delta * 0.7;
-                    if(previewObject.userData.animationProgress > 1) previewObject.userData.animationProgress = 1;
-                    anims.death(previewObject, previewObject.userData.animationProgress);
-                    break;
-                // Tentacle
-                case 'emerge':
-                    previewObject.position.y = THREE.MathUtils.lerp(previewObject.position.y, 0, 0.1);
-                    GameData.enemies.tentacle.animations.wave(previewObject, previewClock.getElapsedTime());
-                    break;
-                case 'wave':
-                     GameData.enemies.tentacle.animations.wave(previewObject, previewClock.getElapsedTime());
-                     break;
-                case 'retract':
-                     previewObject.position.y = THREE.MathUtils.lerp(previewObject.position.y, -10, 0.1);
-                     break;
+            if (anims) {
+                 switch(previewAnimationState) {
+                    case 'idle': anims.idle(previewObject, previewClock.getElapsedTime()); break;
+                    case 'walk': anims.walk(previewObject, previewClock.getElapsedTime()); break;
+                    case 'shoot':
+                        previewObject.userData.animationProgress = (previewObject.userData.animationProgress || 0) + delta * 2.0;
+                        if(previewObject.userData.animationProgress >= 1) previewObject.userData.animationProgress = 0;
+                        anims.shoot(previewObject, previewObject.userData.animationProgress);
+                        break;
+                    case 'death':
+                        previewObject.userData.animationProgress = (previewObject.userData.animationProgress || 0) + delta * 0.7;
+                        if(previewObject.userData.animationProgress > 1) previewObject.userData.animationProgress = 1;
+                        anims.death(previewObject, previewObject.userData.animationProgress);
+                        break;
+                    case 'mouth_animate':
+                        anims.mouth_animate(previewObject, previewClock.getElapsedTime());
+                        break;
+                    case 'emerge':
+                        previewObject.position.y = THREE.MathUtils.lerp(previewObject.position.y, 0, 0.1);
+                        GameData.enemies.tentacle.animations.wave(previewObject, previewClock.getElapsedTime());
+                        break;
+                    case 'wave':
+                        GameData.enemies.tentacle.animations.wave(previewObject, previewClock.getElapsedTime());
+                        break;
+                    case 'retract':
+                        previewObject.position.y = THREE.MathUtils.lerp(previewObject.position.y, -10, 0.1);
+                        break;
+                }
             }
         }
     }
