@@ -7,11 +7,7 @@
 const levelOrder = ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'];
 
 // --- TOUCH CONTROLS STATE ---
-const touchState = {
-    move: { id: null, startX: 0, startY: 0, currentX: 0, currentY: 0 },
-    look: { id: null, startX: 0, startY: 0, lastX: 0, lastY: 0 },
-    lastDoubleTap: 0,
-};
+const touchState = {}; // Keyed by touch identifier
 
 function setupControls() {
     const mapContainer = document.getElementById('map-container');
@@ -41,13 +37,11 @@ function setupControls() {
         const zoomProps = weapon.properties.zoom;
         const scrollDirection = event.deltaY > 0 ? 1 : -1; // 1 for scroll down, -1 for scroll up
 
-        // Scroll down -> zoom out (increase FOV), Scroll up -> zoom in (decrease FOV)
         camera.fov += scrollDirection * zoomProps.step;
         camera.fov = Math.max(zoomProps.min, Math.min(zoomProps.max, camera.fov));
         camera.updateProjectionMatrix();
     };
     const onKeyDown = (event) => {
-        // MODIFIED: Restart on any key except options/escape when game is over
         if (isGameOver && event.key !== 'Escape' && event.code !== 'KeyO') { 
             event.preventDefault(); 
             restartGame(); 
@@ -64,7 +58,6 @@ function setupControls() {
         if (event.code === 'KeyO' || event.key === 'Escape') { toggleOptionsMenu(); return; }
         if (event.code === 'KeyJ') { toggleDebugMenu(); return; }
         if (debugMenu && debugMenu.style.display.includes('flex') && event.code === 'KeyH') {
-            // --- DEV CHEAT ---
             player.fuelCells += 2;
             if (!player.hasJetpack) {
                 player.hasJetpack = true;
@@ -105,19 +98,13 @@ function setupControls() {
     
     document.addEventListener('pointerlockchange', () => {
         if (document.pointerLockElement === document.body) {
-            // Pointer has been successfully LOCKED
             controls.isLocked = true;
             isPaused = false;
-            // Hide all menus to ensure a clean game state
             document.getElementById('options-menu').style.display = 'none';
             document.getElementById('inventory-menu').style.display = 'none';
             document.getElementById('blocker').style.display = 'none';
         } else {
-            // Pointer has been UNLOCKED
             controls.isLocked = false;
-            // If the game isn't over and we are not intentionally pausing for inventory, show the options menu.
-            // This handles the user pressing ESC to exit pointer lock.
-            // NOTE: isPaused is NOT set to true here, allowing the game to run in the background.
             if (!isGameOver && !inventoryMenu.style.display.includes('flex') && !debugMenu.style.display.includes('flex')) {
                 document.getElementById('options-menu').style.display = 'flex';
             }
@@ -125,7 +112,6 @@ function setupControls() {
     });
 
     const onBlockerInteract = (event) => {
-        // If an options button on any overlay was clicked, open options and stop.
         if (event.target.id === 'options-button-intro' || event.target.id === 'options-button-gameover') {
             toggleOptionsMenu(true);
             return;
@@ -134,7 +120,6 @@ function setupControls() {
         if (!hasInteracted) {
             if (backgroundMusic) backgroundMusic.play();
             hasInteracted = true;
-            // Attempt to go fullscreen on the first interaction
             document.documentElement.requestFullscreen().catch(err => {
                 console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
             });
@@ -170,7 +155,6 @@ function setupControls() {
     document.getElementById('restart-button-options').addEventListener('click', restartFromOptions);
     document.getElementById('restart-button-options').addEventListener('touchend', restartFromOptions);
 
-    // Fullscreen button
     document.getElementById('fullscreen-button').addEventListener('click', () => {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(err => {
@@ -179,7 +163,6 @@ function setupControls() {
         } else {
             document.exitFullscreen();
         }
-        // Close the menu after toggling to prevent a "frozen" state.
         toggleOptionsMenu(false);
     });
     
@@ -210,9 +193,8 @@ function setupControls() {
                 toggleInventoryMenu();
             }
         } else if (itemKey) {
-            if (itemKey === 'xray_goggles' && player.hasXRayGoggles) {
-                player.xrayGogglesActive = !player.xrayGogglesActive;
-                toggleXRayEffect(player.xrayGogglesActive);
+            if (itemKey === 'xray_goggles') {
+                toggleGoggles();
                 updateInventoryMenu();
             }
         }
@@ -222,63 +204,78 @@ function setupControls() {
     document.getElementById('close-inventory').addEventListener('click', toggleInventoryMenu);
     document.getElementById('close-inventory').addEventListener('touchend', toggleInventoryMenu);
 
-    // --- TOUCH CONTROLS SETUP ---
     const onTouchStart = (event) => {
-        if (isGameOver || isPaused) return;
+        if (isGameOver || isPaused || !gameSettings.touchControlsEnabled) return;
+        event.preventDefault();
+
+        const hudHeight = document.getElementById('doom-hud').clientHeight;
 
         for (const touch of event.changedTouches) {
-            // If this specific touch started on a HUD button, skip joystick logic for it.
-            // The button's own event listener will handle its action.
-            const targetId = touch.target.id;
-            if (targetId === 'jump-button-hud' || targetId === 'shoot-button-hud' || targetId === 'inventory-button-hud') {
-                continue;
+            if (touch.clientY > window.innerHeight - hudHeight) continue;
+            
+            const touchX = touch.clientX;
+            const touchY = touch.clientY;
+            const screenWidth = window.innerWidth;
+            const zoneLeft = screenWidth * 0.3;
+            const zoneRight = screenWidth * 0.7;
+
+            let zone = '';
+            if (touchX < zoneLeft) {
+                zone = 'move';
+            } else if (touchX > zoneRight) {
+                zone = 'look';
+            } else {
+                zone = 'action';
             }
             
-            const halfWidth = window.innerWidth / 2;
-
-            // Left side for movement
-            if (touch.clientX < halfWidth && touchState.move.id === null) {
-                touchState.move.id = touch.identifier;
-                touchState.move.startX = touch.clientX;
-                touchState.move.startY = touch.clientY;
-                touchState.move.currentX = touch.clientX;
-                touchState.move.currentY = touch.clientY;
-            }
-            // Right side for looking
-            else if (touch.clientX >= halfWidth && touchState.look.id === null) {
-                touchState.look.id = touch.identifier;
-                touchState.look.startX = touch.clientX;
-                touchState.look.startY = touch.clientY;
-                touchState.look.lastX = touch.clientX;
-                touchState.look.lastY = touch.clientY;
+            touchState[touch.identifier] = {
+                zone: zone,
+                startX: touchX,
+                startY: touchY,
+                currentX: touchX,
+                currentY: touchY,
+            };
+            
+            if (zone === 'action') {
+                const actionAreaHeight = window.innerHeight - hudHeight;
+                if (touchY < actionAreaHeight / 2) {
+                    keys['Space'] = true;
+                } 
+                else {
+                    mouse.isDown = true;
+                }
             }
         }
     };
 
     const onTouchMove = (event) => {
-        if (isGameOver || isPaused) return;
-        event.preventDefault(); // Prevent screen scrolling
+        if (isGameOver || isPaused || !gameSettings.touchControlsEnabled) return;
+        event.preventDefault(); 
+        
         for (const touch of event.changedTouches) {
-            if (touch.identifier === touchState.move.id) {
-                touchState.move.currentX = touch.clientX;
-                touchState.move.currentY = touch.clientY;
-                const dx = touchState.move.currentX - touchState.move.startX;
-                const dy = touchState.move.currentY - touchState.move.startY;
+            const state = touchState[touch.identifier];
+            if (!state) continue;
+
+            if (state.zone === 'move') {
+                state.currentX = touch.clientX;
+                state.currentY = touch.clientY;
+                const dx = state.currentX - state.startX;
+                const dy = state.currentY - state.startY;
                 const deadZone = 20;
 
                 keys['KeyW'] = dy < -deadZone;
                 keys['KeyS'] = dy > deadZone;
                 keys['KeyA'] = dx < -deadZone;
                 keys['KeyD'] = dx > deadZone;
-            } else if (touch.identifier === touchState.look.id) {
-                const movementX = touch.clientX - touchState.look.lastX;
-                const movementY = touch.clientY - touchState.look.lastY;
-                touchState.look.lastX = touch.clientX;
-                touchState.look.lastY = touch.clientY;
+            } else if (state.zone === 'look') {
+                const movementX = touch.clientX - state.currentX;
+                const movementY = touch.clientY - state.currentY;
+                state.currentX = touch.clientX;
+                state.currentY = touch.clientY;
 
                 if (player.state === 'on_foot' || player.state === 'driving_motorcycle') {
-                    playerObject.rotation.y -= movementX * 0.002;
-                    camera.rotation.x -= movementY * 0.002;
+                    playerObject.rotation.y -= movementX * 0.0035; 
+                    camera.rotation.x -= movementY * 0.0035;
                     camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
                 }
             }
@@ -286,47 +283,73 @@ function setupControls() {
     };
     
     const onTouchEnd = (event) => {
+        if (!gameSettings.touchControlsEnabled) return;
+
         for (const touch of event.changedTouches) {
-            if (touch.identifier === touchState.move.id) {
-                touchState.move.id = null;
+            const state = touchState[touch.identifier];
+            if (!state) continue;
+
+            if (state.zone === 'move') {
                 keys['KeyW'] = false; keys['KeyS'] = false; keys['KeyA'] = false; keys['KeyD'] = false;
-            } else if (touch.identifier === touchState.look.id) {
-                touchState.look.id = null;
+            } else if (state.zone === 'action') {
+                keys['Space'] = false;
+                mouse.isDown = false;
             }
+            
+            delete touchState[touch.identifier];
         }
     };
 
-    document.addEventListener('touchstart', onTouchStart, { passive: false });
-    document.addEventListener('touchmove', onTouchMove, { passive: false });
-    document.addEventListener('touchend', onTouchEnd, { passive: false });
-    document.addEventListener('touchcancel', onTouchEnd, { passive: false });
+    if (isTouchDevice) {
+        document.addEventListener('touchstart', onTouchStart, { passive: false });
+        document.addEventListener('touchmove', onTouchMove, { passive: false });
+        document.addEventListener('touchend', onTouchEnd, { passive: false });
+        document.addEventListener('touchcancel', onTouchEnd, { passive: false });
+    }
 
-    // --- MOUSE/KEYBOARD LISTENERS (Continued) ---
     controls = { isLocked: false }; document.addEventListener('mousemove', onMouseMove, false); document.addEventListener('keydown', onKeyDown); document.addEventListener('keyup', onKeyUp); document.addEventListener('wheel', onMouseWheel, { passive: false }); document.addEventListener('mousedown', () => { if(controls.isLocked) mouse.isDown = true; }); document.addEventListener('mouseup', () => mouse.isDown = false); document.addEventListener('click', () => { if (controls.isLocked && !isGameOver && !isPaused && player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) shoot(); });
     
-    // --- HUD & TOUCH CONTROLS MENU BUTTONS ---
-    
-    // Inventory HUD button listener
     const inventoryButton = document.getElementById('inventory-button-hud');
     inventoryButton.addEventListener('click', toggleInventoryMenu);
     inventoryButton.addEventListener('touchstart', (e) => { e.preventDefault(); toggleInventoryMenu(); });
 
-    // Jump HUD button listeners
-    const jumpButton = document.getElementById('jump-button-hud');
-    jumpButton.addEventListener('touchstart', (e) => { e.preventDefault(); keys['Space'] = true; });
-    jumpButton.addEventListener('touchend', (e) => { e.preventDefault(); keys['Space'] = false; });
-    jumpButton.addEventListener('mousedown', (e) => { e.preventDefault(); keys['Space'] = true; });
-    jumpButton.addEventListener('mouseup', (e) => { e.preventDefault(); keys['Space'] = false; });
+    const gogglesButton = document.getElementById('goggles-hud-container');
+    gogglesButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        toggleGoggles();
+        updateHUD();
+    });
 
-    
-    // Shoot HUD button listeners
-    const shootButton = document.getElementById('shoot-button-hud');
-    shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); mouse.isDown = true; });
-    shootButton.addEventListener('touchend', (e) => { e.preventDefault(); mouse.isDown = false; });
-    shootButton.addEventListener('mousedown', (e) => { e.preventDefault(); mouse.isDown = true; });
-    shootButton.addEventListener('mouseup', (e) => { e.preventDefault(); mouse.isDown = false; });
+    const weaponPrevButton = document.getElementById('weapon-prev-hud');
+    weaponPrevButton.addEventListener('touchstart', (e) => { e.preventDefault(); changeWeapon(-1); });
+    const weaponNextButton = document.getElementById('weapon-next-hud');
+    weaponNextButton.addEventListener('touchstart', (e) => { e.preventDefault(); changeWeapon(1); });
 
-    // Interaction Prompt Listener for Touch
+    const weaponDisplay = document.getElementById('weapon-display-container');
+    const handleWeaponPress = (e) => {
+        if (e.target.classList.contains('hud-button')) return;
+        e.preventDefault();
+        mouse.isDown = true;
+    };
+    const handleWeaponRelease = (e) => {
+        if (e.target.classList.contains('hud-button')) return;
+        e.preventDefault();
+        mouse.isDown = false;
+        const isTouchEvent = e.type.includes('touch');
+        if (isTouchEvent && controls.isLocked && !isGameOver && !isPaused && player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) {
+            shoot();
+        }
+    };
+    weaponDisplay.addEventListener('mousedown', handleWeaponPress);
+    weaponDisplay.addEventListener('touchstart', handleWeaponPress);
+    weaponDisplay.addEventListener('mouseup', handleWeaponRelease);
+    weaponDisplay.addEventListener('touchend', handleWeaponRelease);
+    weaponDisplay.addEventListener('mouseleave', handleWeaponRelease);
+    weaponDisplay.addEventListener('touchcancel', handleWeaponRelease);
+    weaponDisplay.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
     const interactionPromptElement = document.getElementById('interaction-prompt');
     const handleInteractionPromptTouch = (e) => {
         e.preventDefault();
@@ -345,6 +368,33 @@ function setupControls() {
     const closeTouchControls = () => { document.getElementById('touch-controls-menu').style.display = 'none'; };
     document.getElementById('close-touch-controls').addEventListener('click', closeTouchControls);
     document.getElementById('close-touch-controls').addEventListener('touchend', closeTouchControls);
+    
+    const toggleTouchButton = document.getElementById('toggle-touch-button');
+    if (toggleTouchButton) {
+        toggleTouchButton.addEventListener('click', toggleTouchControlsEnabled);
+    }
+}
+
+function toggleTouchControlsEnabled() {
+    gameSettings.touchControlsEnabled = !gameSettings.touchControlsEnabled;
+    const button = document.getElementById('toggle-touch-button');
+    if (button) {
+        button.textContent = `Touch Controls: ${gameSettings.touchControlsEnabled ? 'ON' : 'OFF'}`;
+    }
+    console.log(`Touch controls set to: ${gameSettings.touchControlsEnabled}`);
+}
+
+function toggleGoggles() {
+    if (!player.hasXRayGoggles) return;
+
+    if (player.xrayGogglesActive) {
+        player.xrayGogglesActive = false;
+    } else {
+        if (player.gogglesCooldown <= 0) {
+            player.xrayGogglesActive = true;
+        }
+    }
+    toggleXRayEffect(player.xrayGogglesActive);
 }
 
 function toggleOptionsMenu(forceOpen = null) {
@@ -367,12 +417,12 @@ function toggleInventoryMenu() {
     const isOpening = inventoryMenu.style.display !== 'flex';
     if (isOpening) {
         updateInventoryMenu();
-        isPaused = true; // Inventory explicitly pauses the game
+        isPaused = true;
         inventoryMenu.style.display = 'flex';
         document.exitPointerLock();
     } else {
         inventoryMenu.style.display = 'none';
-        isPaused = false; // Unpause when closing
+        isPaused = false;
         if (!isGameOver && !document.getElementById('options-menu').style.display.includes('flex')) {
             document.body.requestPointerLock();
         }
@@ -382,18 +432,29 @@ function toggleInventoryMenu() {
 function setActiveWeapon(index) {
     if (player.currentWeaponIndex === index || player.carriedObject) return;
     
-    // Reset FOV if switching AWAY from sniper rifle
     const oldWeaponData = GameData.weapons[player.currentWeaponIndex];
     if (oldWeaponData && oldWeaponData.name === 'Sniper Rifle') {
         camera.fov = oldWeaponData.properties.zoom.default;
         camera.updateProjectionMatrix();
     }
 
-    document.getElementById(`weapon-sprite-${player.currentWeaponIndex}`).classList.remove('weapon-active');
+    const oldSprite = document.getElementById(`weapon-sprite-${player.currentWeaponIndex}`);
+    if (oldSprite) {
+        oldSprite.classList.remove('weapon-active');
+        oldSprite.style.display = 'none';
+    }
+    
     gunModels[player.currentWeaponIndex].visible = false;
     player.currentWeaponIndex = index;
-    document.getElementById(`weapon-sprite-${index}`).classList.add('weapon-active');
+    
+    const newSprite = document.getElementById(`weapon-sprite-${index}`);
+    if (newSprite) {
+        newSprite.classList.add('weapon-active');
+        newSprite.style.display = 'block';
+    }
+    
     gunModels[index].visible = true;
+    updateHUD();
 }
 
 function changeWeapon(direction) {
@@ -411,8 +472,7 @@ function changeWeapon(direction) {
 }
 
 function updatePlayer(delta) {
-    const isMovingByTouch = touchState.move.id !== null;
-    // MODIFIED: Removed isPaused check, as player input is now gated by pointer lock state (!controls.isLocked)
+    const isMovingByTouch = Object.keys(touchState).length > 0;
     if (player.state !== 'on_foot' || isGameOver || (!controls.isLocked && !isMovingByTouch)) {
         player.velocity.x *= GameWorld.player.damping;
         player.velocity.z *= GameWorld.player.damping;
@@ -423,6 +483,26 @@ function updatePlayer(delta) {
     player.velocity.x *= GameWorld.player.damping;
     player.velocity.z *= GameWorld.player.damping;
     player.velocity.y -= GRAVITY * delta;
+
+    if (player.hasXRayGoggles) {
+        if (player.gogglesCooldown > 0) {
+            player.gogglesCooldown -= delta;
+            if (player.gogglesCooldown <= 0) {
+                player.gogglesCooldown = 0;
+                player.gogglesBattery = player.maxGogglesBattery;
+            }
+        }
+        if (player.xrayGogglesActive) {
+            player.gogglesBattery -= delta;
+            if (player.gogglesBattery <= 0) {
+                player.gogglesBattery = 0;
+                player.xrayGogglesActive = false;
+                toggleXRayEffect(false);
+                player.gogglesCooldown = 30; 
+            }
+        }
+    }
+
 
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(playerObject.quaternion);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(playerObject.quaternion);
@@ -452,10 +532,9 @@ function updatePlayer(delta) {
     const playerHeight = GameWorld.player.height;
     const playerSize = new THREE.Vector3(0.6, playerHeight, 0.6);
 
-    // --- X-AXIS COLLISION ---
     playerBox.setFromCenterAndSize(playerObject.position.clone().add(new THREE.Vector3(deltaPos.x, playerHeight/2, 0)), playerSize);
     for (const c of buildingColliders) {
-        if(c.userData && c.userData.colliderType === 'mesh') continue; // Skip meshes for simple horizontal check
+        if(c.userData && c.userData.colliderType === 'mesh') continue;
         if(playerBox.intersectsBox(c)) {
             deltaPos.x = (deltaPos.x > 0 ? c.min.x - playerBox.max.x : c.max.x - playerBox.min.x) - 0.001 * Math.sign(deltaPos.x);
             player.velocity.x = 0; break;
@@ -463,10 +542,9 @@ function updatePlayer(delta) {
     }
     playerObject.position.x += deltaPos.x;
     
-    // --- Z-AXIS COLLISION ---
     playerBox.setFromCenterAndSize(playerObject.position.clone().add(new THREE.Vector3(0, playerHeight/2, deltaPos.z)), playerSize);
     for (const c of buildingColliders) {
-         if(c.userData && c.userData.colliderType === 'mesh') continue; // Skip meshes for simple horizontal check
+         if(c.userData && c.userData.colliderType === 'mesh') continue;
          if(playerBox.intersectsBox(c)) {
             deltaPos.z = (deltaPos.z > 0 ? c.min.z - playerBox.max.z : c.max.z - playerBox.min.z) - 0.001 * Math.sign(deltaPos.z);
             player.velocity.z = 0; break;
@@ -474,11 +552,9 @@ function updatePlayer(delta) {
     }
     playerObject.position.z += deltaPos.z;
     
-    // --- UNIFIED Y-AXIS (VERTICAL) COLLISION ---
     player.canJump = false;
     let highestGroundY = -Infinity;
 
-    // First, find the highest possible ground level beneath the player
     for (const c of buildingColliders) {
         if (c.userData && c.userData.colliderType === 'mesh') {
             const raycaster = new THREE.Raycaster(
@@ -498,21 +574,17 @@ function updatePlayer(delta) {
         }
     }
     
-    // Ground plane is the ultimate floor
     highestGroundY = Math.max(0, highestGroundY);
 
-    // Now, apply collision based on the highest ground found
     const playerFeetY = playerObject.position.y - playerHeight / 2;
     if (playerFeetY + deltaPos.y < highestGroundY) {
         player.velocity.y = 0;
-        // The FIX: Set the player's center to be half their height ABOVE the ground
         playerObject.position.y = highestGroundY + playerHeight / 2;
         player.canJump = true;
     } else {
         playerObject.position.y += deltaPos.y;
     }
 
-    // Vertical collision for hitting ceilings (bonking head)
     playerBox.setFromCenterAndSize(playerObject.position.clone().add(new THREE.Vector3(0, playerHeight/2, 0)), playerSize);
     for (const c of buildingColliders) {
         if (!(c.userData && c.userData.colliderType === 'mesh') && playerBox.intersectsBox(c)) {
@@ -528,10 +600,10 @@ function updatePlayer(delta) {
         if (playerObject.position.distanceTo(alien.position) < 1.5) { 
             if(alien.userData.type === 'worm_swarm') health -= 5 * delta;
             else health -= 0.25; 
+            lastAttackerPosition = alien.position.clone();
         }
     }
     
-    // Reset safety flags each frame
     player.isSafeInBunker = false;
     player.isSafeInShelter = false;
 
@@ -539,9 +611,14 @@ function updatePlayer(delta) {
         const dist = playerObject.position.distanceTo(veg.position);
         if (veg.userData.isPoison && dist < 1.5) {
             health -= 15 * delta;
+            lastAttackerPosition = veg.position.clone();
         }
-        if (veg.userData.isShelter && dist < 1.0) { 
-            player.isSafeInShelter = true;
+        if (veg.userData.isShelter) {
+            const isTree = veg.userData.isTree || (veg.children[0]?.geometry instanceof THREE.CylinderGeometry && veg.children[0].geometry.parameters.height > 20);
+            const shelterRadius = isTree ? 3.0 : 1.0;
+            if (dist < shelterRadius) {
+                player.isSafeInShelter = true;
+            }
         }
     }
     
@@ -661,7 +738,7 @@ function updateInteractions() {
         interactionPromptElement.textContent = prompt;
         if (keys['KeyF']) {
             throwCarriedObject();
-            keys['KeyF'] = false; // Consume the keypress
+            keys['KeyF'] = false;
         }
         return;
     }
@@ -680,7 +757,6 @@ function updateInteractions() {
     if (closestInteractable) {
         let promptText = closestInteractable.getPrompt();
         if (!isTouchDevice) {
-            // Add "[F]" for non-touch devices, unless it's the complex spacecraft message
             if (!promptText.startsWith("The spacecraft")) {
                 promptText = `[F] ${promptText}`;
             }
@@ -800,8 +876,8 @@ function updateHyperspace(delta) {
         const nextLevel = levelOrder[nextIndex];
         
         player.state = 'landing_sequence';
-        hyperspaceData.time = 0; // Reset for fade-in
-        loadLevel(nextLevel, false, true); // isLanding = true
+        hyperspaceData.time = 0;
+        loadLevel(nextLevel, false, true);
     }
 }
 
