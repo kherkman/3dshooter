@@ -6,7 +6,7 @@
 
 // --- GLOBAL SETUP ---
 let scene, camera, renderer, controls, audioListener;
-let playerObject, damageFlashElement, mapCanvas, mapCtx, mapBackgroundCanvas;
+let playerObject, damageFlashElement, mapCanvas, mapCtx, mapBackgroundCanvas, attackIndicator;
 let levelObjects = {}; // To hold ground, lights etc. for easy removal
 const clock = new THREE.Clock();
 
@@ -14,10 +14,12 @@ const clock = new THREE.Clock();
 const gameSounds = {};
 let backgroundMusic;
 let hasInteracted = false;
-const gameSettings = { sfxVolume: 0.4, musicVolume: 0.2 };
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const gameSettings = { sfxVolume: 0.4, musicVolume: 0.2, touchControlsEnabled: isTouchDevice };
+
 
 // --- GAME OBJECTS & COLLECTIONS ---
-const player = {}; // Will be populated from GameWorld.player
+const player = {}; 
 const bullets = [], rockets = [], plasmaRings = [], grenades = [], clusters = [], aliens = [], alienDebris = [], hitScatters = [], alienProjectiles = [], cyborgProjectiles = [], buildingColliders = [], shellCasings = [], blackHoles = [], shardProjectiles = [];
 const collectibles = { jetpack: null, health: [], ammo: [], weaponPickups: [], fuelCells: [], glowingOrbs: [], xrayGoggles: null };
 const interactables = [];
@@ -31,6 +33,8 @@ let xrayMaterials = {};
 let initialInstructionsHTML = '';
 const gunBasePosition = new THREE.Vector3(0.5, -0.4, -1);
 let score = 0, health = 500, isGameOver = false, lastHealth = 500, isPaused = false;
+let lastAttackerPosition = null;
+let attackIndicatorTimeout = null;
 let hyperspaceData = { time: 0, duration: 5.0, fadeTime: 1.5 };
 const keys = {}, mouse = { isDown: false, x: 0, y: 0 };
 let fKeyPressed = false;
@@ -67,6 +71,7 @@ function init() {
     playerObject.add(camera);
     scene.add(playerObject);
 
+    attackIndicator = document.getElementById('attack-indicator');
     damageFlashElement = document.getElementById('damage-flash');
     mapCanvas = document.getElementById('map-canvas');
     mapCtx = mapCanvas.getContext('2d');
@@ -117,7 +122,7 @@ function onWindowResize() {
 // --- CORE GAME STATE & LOOP ---
 
 function clearScene() {
-    toggleXRayEffect(false); // Restore all materials before clearing
+    toggleXRayEffect(false); 
     
     for (let i = scene.children.length - 1; i >= 0; i--) {
         const obj = scene.children[i];
@@ -147,8 +152,6 @@ function clearScene() {
 }
 
 function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
-    // --- PERSISTENT STATE ---
-    // Store current state before clearing, if not initial load
     const preservedState = isInitialLoad ? 
         GameWorld.player.initialState : 
         {
@@ -161,11 +164,10 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     
     currentLevel = levelName;
     
-    // Reset player state but keep persistent items
-    Object.assign(player, GameWorld.player.initialState); // Reset to defaults first
-    Object.assign(player, preservedState); // Then apply preserved state
+    Object.assign(player, GameWorld.player.initialState); 
+    Object.assign(player, preservedState); 
     player.velocity = new THREE.Vector3();
-    player.xrayGogglesActive = false; // Always turn off goggles on level change
+    player.xrayGogglesActive = false; 
     
     if (starfield) starfield.visible = false;
     if (isPaused) { document.getElementById('options-menu').style.display = 'none'; isPaused = false; }
@@ -176,30 +178,28 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     const levelData = GameWorld.levels[levelName].create(scene, buildingColliders, vegetation, bunkers);
     levelObjects = { ...levelData };
     
-    // Set player position and rotation first, BEFORE calculating relative object positions
     if (levelName === 'city') {
         playerObject.position.set(0, 0, 10);
     } else if (levelName === 'volcanic') {
-        playerObject.position.set(0, 0, 55); // Spawn outside the pyramid
+        playerObject.position.set(0, 0, 55); 
     } else {
         playerObject.position.set(0, 0, 0);
     }
     playerObject.quaternion.identity();
     camera.rotation.set(0,0,0);
     
-    // Now, calculate the spacecraft landing position
     let spacecraftPosition;
     if (levelData.landingPadPosition) {
         spacecraftPosition = levelData.landingPadPosition;
     } else if (levelName === 'volcanic') {
-        spacecraftPosition = new THREE.Vector3(60, 1.0, 60); // Land far from pyramid
+        spacecraftPosition = new THREE.Vector3(60, 1.0, 60); 
     } else {
         spacecraftPosition = playerObject.position.clone().add(new THREE.Vector3(0, 1.0, -25));
     }
     
     if (isLanding) {
         player.state = 'landing_sequence';
-        playerObject.position.copy(spacecraftPosition).setY(250); // Player is "in" the ship high up
+        playerObject.position.copy(spacecraftPosition).setY(250); 
         document.getElementById('doom-hud').style.display = 'none';
         document.getElementById('crosshair').style.display = 'none';
         cockpitOverlayElement.style.display = 'block';
@@ -212,27 +212,26 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
         cockpitOverlayElement.style.display = 'none';
         cockpitJoystick.visible = false;
         cockpitHexHUD.visible = false;
-        setActiveWeapon(0); // Only set active weapon on a normal start
+        setActiveWeapon(0); 
     }
 
-    // Reset health and score on every level, unless specified otherwise
     if (isInitialLoad) {
         health = 500;
         score = 0;
     }
     lastHealth = health;
     
-    // Update HUD for persistent items that don't depend on visibility state
     document.getElementById('jetpack-hud-container').style.display = player.hasJetpack ? 'flex' : 'none';
     for (let i = 0; i < GameData.weapons.length; i++) {
         const sprite = document.getElementById(`weapon-sprite-${i}`);
         if(sprite) {
-            sprite.style.display = player.unlockedWeapons[i] ? 'block' : 'none';
+            sprite.style.display = 'none'; 
             sprite.classList.remove('weapon-active');
         }
     }
     
-    spawnAliens(15, true);
+    const alienCount = GameWorld.levels[levelName].initialAlienCount || 15;
+    spawnAliens(alienCount, true);
     spawnInitialCollectibles();
     if (spacecraftPosition) spawnSpacecraft(spacecraftPosition, isLanding);
     if (levelData.motorcyclePosition) spawnMotorcycle(levelData.motorcyclePosition);
@@ -328,11 +327,21 @@ function animate() {
     if (isGameOver) return;
     
     const delta = clock.getDelta();
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    if (player.xrayGogglesActive) {
+        aliens.forEach(alien => {
+            alien.traverse(child => {
+                if (child.isMesh) {
+                    if (child.material !== xrayMaterials.enemy && !originalMaterials.has(child)) {
+                        originalMaterials.set(child, child.material);
+                        child.material = xrayMaterials.enemy;
+                    }
+                }
+            });
+        });
+    }
 
-    // --- Simulation Updates ---
-    // This block is skipped when the game is paused on desktop.
-    if (!isPaused || isTouchDevice) {
+    if (!isPaused || gameSettings.touchControlsEnabled) {
         switch(player.state) {
             case 'on_foot':
                 if (mouse.isDown && ['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name)) shoot();
@@ -382,23 +391,18 @@ function animate() {
         if(keys['Tab']) updateMap();
     }
 
-    // --- Visual-only Updates ---
-    // These run even when paused for smooth animations (e.g. gun bobbing).
     updateGun(delta);
+    updateAttackIndicator();
     
-    // --- Rendering ---
-    // The renderer always runs to prevent a black screen.
     renderer.render(scene, camera);
 }
 
 function toggleXRayEffect(isActive) {
     if (isActive) {
-        if (originalMaterials.size > 0) return; // Already on
+        if (originalMaterials.size > 0) return;
 
-        // Store original materials and apply new ones
         scene.traverse(obj => {
             if (obj.isMesh) {
-                 // Skip guns attached to camera
                 let isPlayerGun = false;
                 for(const gun of gunModels) {
                     if(gun === obj || (gun.children && gun.getObjectById(obj.id))) {
@@ -410,7 +414,6 @@ function toggleXRayEffect(isActive) {
 
                 let xrayMatToApply = null;
 
-                // --- POSITIVE IDENTIFICATION (Priority) ---
                 if (aliens.some(a => a === obj || a.getObjectById(obj.id))) {
                     xrayMatToApply = xrayMaterials.enemy;
                 } else if (spacecraft && (spacecraft === obj || spacecraft.getObjectById(obj.id))) {
@@ -418,7 +421,6 @@ function toggleXRayEffect(isActive) {
                 } else if (collectibles.fuelCells.some(fc => fc === obj || (fc && fc.getObjectById(obj.id)))) {
                     xrayMatToApply = xrayMaterials.fuelCell;
                 }
-                // --- NEGATIVE IDENTIFICATION (If not a priority target) ---
                 else {
                      const isDynamic = bullets.includes(obj) ||
                                     rockets.includes(obj) ||
@@ -435,8 +437,6 @@ function toggleXRayEffect(isActive) {
                                     alienDebris.some(d=>d.mesh===obj) ||
                                     Object.values(collectibles).flat().some(c => c === obj || (c && c.getObjectById && c.getObjectById(obj.id)));
 
-
-                    // If it's not a known dynamic object, it's environment
                     if (!isDynamic) {
                         xrayMatToApply = xrayMaterials.wall;
                     }
@@ -452,8 +452,8 @@ function toggleXRayEffect(isActive) {
         scene.background = new THREE.Color(0x000000);
         scene.fog = null;
 
-    } else { // Deactivating
-        if (originalMaterials.size === 0) return; // Already off
+    } else { 
+        if (originalMaterials.size === 0) return; 
 
         originalMaterials.forEach((originalMat, obj) => {
             if (obj) obj.material = originalMat;
@@ -498,7 +498,6 @@ function updateToxicStorm(delta) {
     }
 
     if (toxicStorm.active) {
-        // MODIFIED: Check for shelter plants in addition to bunkers
         if (!player.isSafeInBunker && !player.isSafeInShelter) {
             health = Math.max(0, health - 10 * delta);
         }
@@ -537,6 +536,7 @@ function updateLightning(delta) {
         if (playerObject.position.distanceTo(strikePos) < 5) {
             health = Math.max(0, health - 25);
             playSound('player_damage');
+            lastAttackerPosition = strikePos.clone();
         }
 
         setTimeout(() => {
