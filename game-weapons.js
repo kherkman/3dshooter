@@ -37,7 +37,7 @@ GameData.weapons = [
     {
         name: 'Rocket Launcher',
         description: 'Fires explosive rockets with a large blast radius.',
-        levels: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
+        levels: ['desert', 'volcanic', 'ice', 'toxic', 'crystal'],
         properties: { fireRate: 0.8, ammoType: 'rocket', projectileSpeed: 60, splashRadius: 8, sound: 'gun_rocket' },
         model: (isViewModel = true) => {
             const group = new THREE.Group(); const greenMetal = new THREE.MeshStandardMaterial({ color: 0x3d553d, roughness: 0.6, metalness: 0.8 }); const darkMetal = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5, metalness: 0.9 }); const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.8, 24), greenMetal); tube.rotation.x = Math.PI / 2; tube.position.z = -0.9; group.add(tube); const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.15), darkMetal); grip.position.set(0, -0.2, -0.5); group.add(grip); const scope = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.3), darkMetal); scope.position.set(-0.2, 0.1, -0.7); group.add(scope); if(isViewModel) { group.rotation.y = Math.PI; } return group;
@@ -47,7 +47,7 @@ GameData.weapons = [
     {
         name: 'Plasma Gun',
         description: 'Shoots fast-moving, homing plasma rings.',
-        levels: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
+        levels: ['volcanic', 'ice', 'toxic', 'crystal'],
         properties: { fireRate: 15, ammoType: 'plasma', projectileSpeed: 80, sound: 'gun_plasma' },
         model: (isViewModel = true) => {
             const group = new THREE.Group(); const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.4, metalness: 0.9 }); const plasmaMat = new THREE.MeshStandardMaterial({ color: 0xff00ff, emissive: 0xff00ff, emissiveIntensity: 2.5 }); const casingMat = new THREE.MeshStandardMaterial({ color: 0x3a3a4a, roughness: 0.5, metalness: 0.8 }); const mainBody = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.8), bodyMat); mainBody.position.z = 0.2; group.add(mainBody); const stock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.6), bodyMat); stock.position.set(0, -0.05, 0.8); group.add(stock); const grip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.4, 0.18), casingMat); grip.position.set(0, -0.2, 0.3); grip.rotation.x = -0.2; group.add(grip); const barrelCasing = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 16), casingMat); barrelCasing.rotation.x = Math.PI / 2; barrelCasing.position.z = -0.8; group.add(barrelCasing); const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.15, 16), bodyMat); muzzle.rotation.x = Math.PI / 2; muzzle.position.z = -1.45; group.add(muzzle); for (let i = 0; i < 4; i++) { const coil = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.02, 8, 24), plasmaMat); coil.rotation.x = Math.PI / 2; coil.position.z = -0.4 - i * 0.25; group.add(coil); } if(isViewModel) { group.rotation.y = 0; } return group;
@@ -57,7 +57,7 @@ GameData.weapons = [
     {
         name: 'Grenade Launcher',
         description: 'Lob explosive grenades that split into smaller clusters.',
-        levels: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
+        levels: ['desert', 'volcanic', 'ice', 'toxic', 'crystal'],
         properties: { fireRate: 1, ammoType: 'grenade', projectileSpeed: 30, projectileLift: 15, clusterCount: 8, clusterSpeed: 25, splashRadius: 6, clusterSplashRadius: 3.5, sound: 'gun_grenade' },
         model: (isViewModel = true) => {
             const group = new THREE.Group(); const darkMetal = new THREE.MeshStandardMaterial({ color: 0x333, roughness: 0.5, metalness: 1 }); const orangePlastic = new THREE.MeshStandardMaterial({ color: 0xde651e, roughness: 0.6 }); const body = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.6), darkMetal); group.add(body); const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.8, 16), darkMetal); barrel.rotation.x = Math.PI / 2; barrel.position.z = -0.7; group.add(barrel); const stock = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.4), orangePlastic); stock.position.set(0, -0.05, 0.5); group.add(stock); const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.15), orangePlastic); grip.position.set(0, -0.15, 0.1); group.add(grip); if (isViewModel) { group.rotation.y = 0; } return group;
@@ -328,7 +328,10 @@ function shoot() {
         const spread = w.properties.spread || 0;
         shotDirection.x += (Math.random() - 0.5) * spread; shotDirection.y += (Math.random() - 0.5) * spread; shotDirection.z += (Math.random() - 0.5) * spread;
         bullet.position.copy(pS);
+        // FIXED: Record the bullet's starting position for accurate range checks.
+        bullet.userData.startPosition = pS.clone();
         bullet.userData.velocity = shotDirection.multiplyScalar(w.name === 'Sniper Rifle' ? 400 : 100);
+        bullet.userData.weaponType = w.name;
         bullets.push(bullet);
         scene.add(bullet);
     }
@@ -394,11 +397,16 @@ function updateBullets(delta) {
             for (let j = aliens.length - 1; j >= 0; j--) {
                 const a = aliens[j];
                 const enemyProps = GameData.enemies[a.userData.type].properties;
-                const hitRadius = (a.userData.type === 'cyborg' ? 2.0 : (a.userData.type === 'stingray' ? 8.0 : (a.userData.type === 'shard_roller' ? 1.5 : 1.2)));
+                const hitRadius = b.userData.weaponType === 'Sniper Rifle' ? 2.5 : (a.userData.type === 'cyborg' ? 2.0 : (a.userData.type === 'stingray' ? 8.0 : (a.userData.type === 'shard_roller' ? 1.5 : 1.2)));
                 if (a.userData.state === 'dying') continue;
                 if (b.position.distanceTo(a.position) < hitRadius) {
                     hit = true;
                     a.userData.health--;
+                    
+                    if (a.userData.type === 'predator') {
+                        createHitScatter(b.position, 0xff0000);
+                    }
+
                     if (a.userData.health <= 0) {
                         score += enemyProps.score || 10;
                         
@@ -422,9 +430,7 @@ function updateBullets(delta) {
                                spawnAliens(1);
                             }
                         }
-                    // MODIFIED: Added an else-if block to handle non-lethal hits on tentacles.
                     } else if (a.userData.type === 'tentacle') {
-                        // Create a green particle spray when a tentacle is hit.
                         createHitScatter(b.position, 0x00ff00);
                     } else if (a.userData.type === 'cyborg') {
                          createHitScatter(b.position);
@@ -433,7 +439,20 @@ function updateBullets(delta) {
                 }
             }
         }
-        if (hit || b.position.length() > 500) {
+        
+        let maxRange = 500; // Default for sniper
+        const weaponType = b.userData.weaponType;
+        if (weaponType === 'Pistol') {
+            maxRange = 50;
+        } else if (weaponType === 'Shotgun') {
+            maxRange = 20;
+        } else if (weaponType === 'Machine Gun') {
+            maxRange = 100;
+        }
+        
+        // FIXED: The range check now correctly measures distance from where the bullet was fired,
+        // not from the center of the world.
+        if (hit || (b.userData.startPosition && b.position.distanceTo(b.userData.startPosition) > maxRange)) {
             scene.remove(b); bullets.splice(i, 1);
         }
     }
