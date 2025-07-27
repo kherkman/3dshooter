@@ -51,9 +51,9 @@ GameData.enemies = {
     flyer: {
         name: 'Flying Wasp',
         description: 'A small, flying drone that shoots energy projectiles from above.',
-        levels: ['city', 'desert', 'volcanic', 'toxic', 'crystal'],
+        levels: ['city', 'desert', 'volcanic', 'toxic'],
         spawnWeight: 0.05,
-        properties: { health: 1, score: 10, spawnY: () => Math.random() * 20 + 15, sightRange: 40, attackCooldown: 3.0, projectileSpeed: 30 },
+        properties: { health: 1, score: 10, spawnY: () => Math.random() * 20 + 15, sightRange: 50, attackCooldown: 3.0, projectileSpeed: 30, patrolRadius: 20 },
         model: () => {
             const g = new THREE.Group(); const bM = new THREE.MeshStandardMaterial({ color: 0x333322, roughness: 0.2, metalness: 0.9 }); const eM = new THREE.MeshStandardMaterial({ color: 0xcc00ff, emissive: 0xcc00ff, emissiveIntensity: 3 }); const b = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 8), bM); g.add(b); const e = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 8), eM); e.position.z = 0.5; g.add(e); const wG = new THREE.BoxGeometry(1.5, 0.1, 0.8); for(let i = 0; i < 2; i++) { const w = new THREE.Mesh(wG, bM); const s = (i % 2 === 0) ? 1 : -1; w.position.set(1.0 * s, 0, -0.2); w.rotation.z = Math.PI / 8 * s; g.add(w); } return g;
         }
@@ -61,7 +61,7 @@ GameData.enemies = {
     cyborg: {
         name: 'Cyborg Soldier',
         description: 'A heavily-armored humanoid soldier equipped with a rapid-fire rifle.',
-        levels: ['city', 'desert', 'volcanic', 'toxic', 'crystal'],
+        levels: ['city', 'desert', 'volcanic', 'crystal'],
         spawnWeight: 0.125,
         properties: { health: 3, score: 25, spawnY: 1.4, sightRange: 30, attackRange: 25, attackCooldown: () => Math.random() * 2 + 3, projectileSpeed: 50 },
         model: () => {
@@ -85,7 +85,7 @@ GameData.enemies = {
             const g = new THREE.Group(); const bodyMat = new THREE.MeshStandardMaterial({color: 0x5d5d7a, metalness: 0.9, roughness: 0.3}); const shape = new THREE.Shape(); shape.moveTo(0,-8); shape.quadraticCurveTo(8, -4, 10, 0); shape.quadraticCurveTo(8, 4, 0, 8); shape.quadraticCurveTo(-8, 4, -10, 0); shape.quadraticCurveTo(-8, -4, 0, -8); const extrudeSettings = { depth: 0.5, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.5, bevelSegments: 2 }; const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings); const body = new THREE.Mesh(geo, bodyMat); body.rotation.x = Math.PI/2; g.add(body); const eyeMat = new THREE.MeshStandardMaterial({color:0xff2200, emissive:0xff2200}); const eye = new THREE.Mesh(new THREE.SphereGeometry(0.8), eyeMat); eye.position.set(0, 0.5, 6); g.add(eye); g.scale.set(1.5,1.5,1.5); return g;
         }
     },
-tentacle: {
+    tentacle: {
         name: 'Ice Tentacle',
         description: 'A hidden predator that emerges from the ground to strike unwary travelers.',
         levels: ['ice'],
@@ -94,16 +94,12 @@ tentacle: {
         properties: { 
             health: 8, 
             score: 50, 
-            // FIXED: Set spawnY to a negative value so the tentacle starts underground.
-            // This is crucial for the "emerge" animation to be visible.
             spawnY: -20, 
             attackRange: 25, 
             attackDamage: 30, 
             emergeSpeed: 10, 
             hitCooldown: 1.5, 
             attackImpulse: 15,
-            // FIXED: Added an initial attackCooldown. Without this, the tentacle's
-            // state machine would never start and it would be stuck in the 'idle' state.
             attackCooldown: 5.0 
         },
         model: () => {
@@ -159,7 +155,7 @@ tentacle: {
             }
         }
     },
-        worm_swarm: {
+    worm_swarm: {
         name: 'Corrosive Worm Swarm',
         description: 'A writhing mass of worms that damages anything it touches.',
         levels: ['toxic'],
@@ -197,7 +193,7 @@ tentacle: {
             swirl: (alien, time) => {
                 if (!alien.userData.worms) return;
                 alien.userData.worms.forEach(worm => {
-                    worm.userData.angle += worm.userData.speed * 0.016; // delta approximation
+                    worm.userData.angle += worm.userData.speed * 0.016; 
                     worm.position.x = Math.cos(worm.userData.angle) * worm.userData.radius;
                     worm.position.z = Math.sin(worm.userData.angle) * worm.userData.radius;
                     worm.position.y = Math.sin(time * 5 + worm.userData.yOffset) * 0.5;
@@ -217,18 +213,19 @@ tentacle: {
         description: 'A large crystal robot that shatters into smaller mites when destroyed.',
         levels: ['crystal'],
         spawnWeight: 0.40,
-        properties: { health: 6, score: 30, speed: 5, spawnY: 1.0, attackRange: 35, attackCooldown: 2.0, projectileSpeed: 40 },
+        properties: { health: 6, score: 30, speed: 8, spawnY: 1.0, attackRange: 35, attackCooldown: 2.0, projectileSpeed: 40 },
         model: () => {
             const group = new THREE.Group();
             const mat = new THREE.MeshStandardMaterial({ color: 0xeeccff, metalness: 0.6, roughness: 0.2, emissive: 0xaa88ff, emissiveIntensity: 0.4 });
             const body = new THREE.Mesh(new THREE.IcosahedronGeometry(1.0, 1), mat);
             group.add(body);
-            for (let i = 0; i < 8; i++) {
-                const spike = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.8, 4), mat);
-                const vertex = new THREE.Vector3().fromBufferAttribute(body.geometry.attributes.position, Math.floor(Math.random() * body.geometry.attributes.position.count));
-                spike.position.copy(vertex);
-                spike.lookAt(0, 0, 0);
-                spike.position.multiplyScalar(1.2);
+            const vertices = body.geometry.attributes.position;
+            for (let i = 0; i < vertices.count; i++) {
+                const spike = new THREE.Mesh(new THREE.ConeGeometry(0.15, 2.0, 4), mat);
+                const vertex = new THREE.Vector3().fromBufferAttribute(vertices, i);
+                spike.position.copy(vertex).multiplyScalar(0.8);
+                spike.lookAt(group.position);
+                spike.rotation.x += Math.PI; 
                 group.add(spike);
             }
             group.scale.setScalar(1.2);
@@ -249,7 +246,7 @@ tentacle: {
         name: 'Shard Mite',
         description: 'A small, fast crystal shard.',
         levels: ['crystal'],
-        spawnWeight: 0, // Does not spawn naturally
+        spawnWeight: 0, 
         properties: { health: 1, score: 5, speed: 10, spawnY: 0.5 },
         model: () => {
             const group = new THREE.Group();
@@ -268,11 +265,125 @@ tentacle: {
                 alien.quaternion.multiplyQuaternions(q, alien.quaternion);
             }
         }
+    },
+    predator: {
+        name: 'Stalker',
+        description: 'A semi-invisible predator that ambushes its prey on the toxic plains.',
+        levels: ['toxic'],
+        spawnWeight: 0.80,
+        initialSpawn: false,
+        properties: { health: 5, score: 40, spawnY: 1.2, sightRange: 35, attackRange: 2.5, attackCooldown: 1.5, speed: 7, attackDamage: 25 },
+        model: () => {
+            const group = new THREE.Group();
+            const bodyMat = new THREE.MeshPhysicalMaterial({
+                color: 0xbbbbbb,
+                metalness: 0.1,
+                roughness: 0.05,
+                ior: 2.3, 
+                transmission: 1.0, 
+                thickness: 0.5, 
+                transparent: true,
+                opacity: 0.25 // Camouflage is a static effect now
+            });
+
+            group.userData.material = bodyMat;
+            group.userData.legs = [];
+            group.userData.spikes = [];
+
+            const body = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 8), bodyMat);
+            body.scale.set(1, 0.5, 2.0);
+            body.position.y = 1.2;
+            group.add(body);
+
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 8), bodyMat);
+            head.position.set(0, 1.4, 1.2);
+            group.add(head);
+
+            // Create a big open mouth
+            const mouthGeo = new THREE.SphereGeometry(0.4, 12, 8, 0, Math.PI);
+            const mouth = new THREE.Mesh(mouthGeo, new THREE.MeshStandardMaterial({color: 0x660000, roughness: 0.8, side: THREE.DoubleSide}));
+            mouth.rotation.x = -Math.PI / 1.5;
+            mouth.position.set(0, -0.1, 0.3);
+            head.add(mouth);
+            group.userData.mouth = mouth;
+
+            // Add sharp teeth
+            const toothGeo = new THREE.ConeGeometry(0.05, 0.2, 4);
+            const toothMat = new THREE.MeshStandardMaterial({color: 0xffffff});
+            for(let i=0; i < 10; i++) {
+                const tooth = new THREE.Mesh(toothGeo, toothMat);
+                const angle = (i / 9) * Math.PI;
+                const radius = 0.38;
+                tooth.position.set(Math.cos(angle) * radius, -0.1, Math.sin(angle) * radius * 0.5 + 0.1);
+                tooth.lookAt(new THREE.Vector3(0, -1, 0));
+                mouth.add(tooth);
+            }
+
+            // Create a multi-segmented tail
+            let parentSegment = group;
+            const tailSegmentGeo = new THREE.SphereGeometry(0.4, 8, 6);
+            for(let i = 0; i < 5; i++) {
+                const scale = 1.0 - (i * 0.15);
+                const tailSegment = new THREE.Mesh(tailSegmentGeo, bodyMat);
+                tailSegment.scale.set(scale, scale, scale);
+                tailSegment.position.set(0, 0.3, -0.7); // position relative to parent
+                parentSegment.add(tailSegment);
+                parentSegment = tailSegment;
+            }
+
+            for(let i=0; i<4; i++) {
+                const side = (i % 2 === 0) ? 1 : -1;
+                const zPos = (i < 2) ? 0.5 : -0.5;
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 0.1), bodyMat);
+                leg.position.set(0.6 * side, 0.7, zPos);
+                leg.rotation.z = -Math.PI / 6 * side;
+                group.add(leg);
+                group.userData.legs.push(leg);
+            }
+            
+            // Add long, sharp spikes everywhere
+            const spikeGeo = new THREE.ConeGeometry(0.1, 1.5, 4); // Spikes are longer now
+            for(let i = 0; i < 50; i++) { // More spikes
+                const spike = new THREE.Mesh(spikeGeo, bodyMat);
+                const phi = Math.acos(-1 + (2 * i) / 49);
+                const theta = Math.sqrt(50 * Math.PI) * phi;
+                const spikePos = new THREE.Vector3();
+                spikePos.setFromSphericalCoords(0.8, phi, theta);
+                spike.position.copy(body.position).add(spikePos);
+                spike.lookAt(body.position);
+                spike.rotation.x += Math.PI;
+                group.add(spike);
+                group.userData.spikes.push(spike);
+            }
+
+            return group;
+        },
+        animations: {
+            walk: (alien, time, delta) => {
+                if (!alien.userData.legs || !alien.userData.spikes) return;
+                const speed = 7;
+                // Animate legs
+                alien.userData.legs.forEach((leg, i) => {
+                    leg.rotation.x = Math.sin(time * speed * 2 + (i < 2 ? 0 : Math.PI)) * 0.4;
+                });
+                // Animate spikes
+                alien.userData.spikes.forEach((spike, i) => {
+                    const wobbleSpeed = 15;
+                    const wobbleAmount = 0.3;
+                    spike.rotation.z = Math.sin(time * wobbleSpeed + i * 0.5) * wobbleAmount * delta * 50;
+                });
+            },
+            mouth_animate: (alien, time) => {
+                if (!alien.userData.mouth) return;
+                const mouth = alien.userData.mouth;
+                mouth.rotation.x = -Math.PI / 1.5 + Math.sin(time * 50) * 0.2; // Rapid chattering
+            }
+        }
     }
 };
 
 function spawnShardMites(position) {
-    const count = 5; // Spawn 5 to 5 mites
+    const count = 5; 
     for (let i = 0; i < count; i++) {
         const data = GameData.enemies.shard_mite;
         const mite = data.model();
@@ -353,6 +464,9 @@ function spawnAliens(count, isInitialSpawn = false) {
             alien.userData.state = 'idle';
             alien.userData.attackCooldown = typeof selectedEnemy.data.properties.attackCooldown === 'function' ? selectedEnemy.data.properties.attackCooldown() : selectedEnemy.data.properties.attackCooldown;
             alien.userData.health = selectedEnemy.data.properties.health;
+            if (selectedEnemy.type === 'flyer') {
+                alien.userData.spawnPoint = alien.position.clone();
+            }
             if (selectedEnemy.data.animations) {
                 if (selectedEnemy.type === 'cyborg') {
                     alien.userData.animationProgress = 0;
@@ -442,11 +556,10 @@ function updateAliens(delta) {
         if(data.attackCooldown > 0) data.attackCooldown -= delta;
         if(data.hitCooldown > 0) data.hitCooldown -= delta;
 
-        // --- NEW: ENEMY vs ENEMY COLLISION ---
         for (let j = i - 1; j >= 0; j--) {
             const otherAlien = aliens[j];
             const dist = alien.position.distanceTo(otherAlien.position);
-            const requiredDist = 2.0; // Minimum distance between alien centers
+            const requiredDist = 2.0; 
             if (dist < requiredDist) {
                 const pushVector = new THREE.Vector3().subVectors(alien.position, otherAlien.position).normalize();
                 const pushAmount = (requiredDist - dist) * 0.5;
@@ -455,16 +568,43 @@ function updateAliens(delta) {
             }
         }
         
-        // Invisibility check
         if (player.carriedObject && player.carriedObject.userData.key === 'glowing_orb') {
-            data.state = 'idle'; // Force idle state
-            data.velocity.multiplyScalar(0.95); // Slow down
+            data.state = 'idle'; 
+            data.velocity.multiplyScalar(0.95); 
             const deltaPos = data.velocity.clone().multiplyScalar(delta);
-            handleEnemyCollision(alien, deltaPos); // Still handle collision
-            continue; // Skip all targeting logic
+            handleEnemyCollision(alien, deltaPos); 
+            continue; 
         }
 
         switch(data.type) {
+            case 'predator':
+                alien.lookAt(playerTarget.position);
+                if (distanceToPlayer < enemyProps.sightRange) {
+                    data.state = 'stalking';
+                    const dir = new THREE.Vector3().subVectors(playerTarget.position, alien.position).normalize();
+                    data.velocity.lerp(dir.multiplyScalar(enemyProps.speed), 0.1);
+                    
+                    if (enemyDef.animations && enemyDef.animations.walk) {
+                        enemyDef.animations.walk(alien, clock.getElapsedTime(), delta);
+                    }
+
+                    if (distanceToPlayer < enemyProps.attackRange) {
+                        if (enemyDef.animations && enemyDef.animations.mouth_animate) {
+                            enemyDef.animations.mouth_animate(alien, clock.getElapsedTime());
+                        }
+                        if (data.attackCooldown <= 0) {
+                            health = Math.max(0, health - enemyProps.attackDamage);
+                            lastAttackerPosition = alien.position.clone();
+                            playSound('player_damage');
+                            data.attackCooldown = enemyProps.attackCooldown;
+                        }
+                    }
+
+                } else {
+                    data.state = 'idle';
+                    data.velocity.multiplyScalar(0.95);
+                }
+                break;
             case 'shard_roller':
             case 'shard_mite':
                 if (distanceToPlayer < 40) {
@@ -473,6 +613,7 @@ function updateAliens(delta) {
                 }
                 if (distanceToPlayer < 1.5) {
                     health = Math.max(0, health - 5);
+                    lastAttackerPosition = alien.position.clone();
                 }
 
                 if (data.type === 'shard_roller' && distanceToPlayer < enemyProps.attackRange && data.attackCooldown <= 0) {
@@ -493,6 +634,7 @@ function updateAliens(delta) {
                 alien.lookAt(playerTarget.position.x, alien.position.y, playerTarget.position.z);
                 if (distanceToPlayer < enemyProps.attackRange && data.attackCooldown <= 0) {
                     health = Math.max(0, health - enemyProps.attackDamage);
+                    lastAttackerPosition = alien.position.clone();
                     wormAttackOverlay.style.opacity = 1;
                     setTimeout(()=> { wormAttackOverlay.style.opacity = 0; }, 200);
                     data.attackCooldown = enemyProps.attackCooldown;
@@ -537,6 +679,7 @@ function updateAliens(delta) {
                         data.attackTimer -= delta;
                         if (distanceToPlayer < 8 && data.hitCooldown <= 0) {
                             health = Math.max(0, health - enemyProps.attackDamage);
+                            lastAttackerPosition = alien.position.clone();
                             player.velocity.y = enemyProps.attackImpulse;
                             playSound('player_damage');
                             data.hitCooldown = enemyProps.hitCooldown;
@@ -557,8 +700,6 @@ function updateAliens(delta) {
                         }
                         break;
                 }
-                // FIXED: This 'continue' is CRITICAL. It stops the generic collision/movement code
-                // below from running on the tentacle, which would prevent it from moving through the ground.
                 continue;
             case 'stingray':
                 const hoverPointStingray = playerTarget.position.clone().add(new THREE.Vector3(Math.sin(clock.getElapsedTime()*0.2)*100, 0, Math.cos(clock.getElapsedTime()*0.2)*100));
@@ -586,20 +727,49 @@ function updateAliens(delta) {
                     case 'idle': if (distanceToPlayer < enemyProps.sightRange) { data.state = 'chase'; } if (enemyDefAnims) enemyDefAnims.idle(alien, clock.getElapsedTime()); data.velocity.x *= 0.8; data.velocity.z *= 0.8; break;
                     case 'chase': alien.lookAt(playerTarget.position.x, alien.position.y, playerTarget.position.z); const dirToPlayer = new THREE.Vector3().subVectors(playerTarget.position, alien.position).normalize(); data.velocity.lerp(dirToPlayer.multiplyScalar(enemyProps.chaseSpeed), 0.1); if (enemyDefAnims) enemyDefAnims.walk(alien, clock.getElapsedTime()); if (distanceToPlayer < enemyProps.pounceRange && data.attackCooldown <= 0 && onGround) { data.state = 'pounce'; data.pounceTimer = enemyProps.pounceWindUp; data.velocity.set(0, 0, 0); } break;
                     case 'pounce': if (enemyDefAnims) enemyDefAnims.pounce(alien); alien.lookAt(playerTarget.position.x, alien.position.y, playerTarget.position.z); data.pounceTimer -= delta; if (data.pounceTimer <= 0) { const pounceDir = new THREE.Vector3().subVectors(playerTarget.position, alien.position); pounceDir.y = 0; pounceDir.normalize().multiplyScalar(enemyProps.pounceForce); pounceDir.y = enemyProps.pounceLift; data.velocity.copy(pounceDir); data.state = 'leaping'; data.attackCooldown = enemyProps.pounceCooldown; } break;
-                    case 'leaping': if (enemyDefAnims) enemyDefAnims.leap(alien); if ((player.state === 'on_foot' || player.state === 'driving_motorcycle') && distanceToPlayer < 1.8) { health = Math.max(0, health - enemyProps.pounceDamage); playSound('player_damage'); data.velocity.multiplyScalar(-0.5); data.state = 'idle'; } if (onGround && data.velocity.y < 0) { data.state = 'idle'; } break;
+                    case 'leaping': if (enemyDefAnims) enemyDefAnims.leap(alien); if ((player.state === 'on_foot' || player.state === 'driving_motorcycle') && distanceToPlayer < 1.8) { health = Math.max(0, health - enemyProps.pounceDamage); lastAttackerPosition = alien.position.clone(); playSound('player_damage'); data.velocity.multiplyScalar(-0.5); data.state = 'idle'; } if (onGround && data.velocity.y < 0) { data.state = 'idle'; } break;
                 }
                 data.velocity.y -= GRAVITY * delta;
                 break;
             case 'flyer':
-                 const hoverPointFlyer = playerTarget.position.clone().add(new THREE.Vector3(0, 10, 0)); const directionToHover = new THREE.Vector3().subVectors(hoverPointFlyer, alien.position).normalize(); data.velocity.lerp(directionToHover.multiplyScalar(5), 0.05); if(distanceToPlayer < enemyProps.sightRange && data.attackCooldown <= 0) { const projectile = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: 0xcc00ff, emissive: 0xcc00ff, emissiveIntensity: 2 })); projectile.position.copy(alien.position); projectile.userData.velocity = new THREE.Vector3().subVectors(playerTarget.position, alien.position).normalize().multiplyScalar(enemyProps.projectileSpeed); alienProjectiles.push(projectile); scene.add(projectile); data.attackCooldown = enemyProps.attackCooldown; }
-                alien.lookAt(playerTarget.position);
+                switch(data.state) {
+                    case 'idle': 
+                        if (distanceToPlayer < enemyProps.sightRange) {
+                            data.state = 'attacking';
+                        } else {
+                            if (!data.patrolTarget || alien.position.distanceTo(data.patrolTarget) < 5) {
+                                const angle = Math.random() * 2 * Math.PI;
+                                const radius = Math.random() * enemyProps.patrolRadius;
+                                data.patrolTarget = data.spawnPoint.clone().add(new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
+                            }
+                            const dirToPatrol = new THREE.Vector3().subVectors(data.patrolTarget, alien.position).normalize();
+                            data.velocity.lerp(dirToPatrol.multiplyScalar(3), 0.05);
+                        }
+                        break;
+                    case 'attacking':
+                        const hoverPointFlyer = playerTarget.position.clone().add(new THREE.Vector3(0, 10, 0)); 
+                        const directionToHover = new THREE.Vector3().subVectors(hoverPointFlyer, alien.position).normalize(); 
+                        data.velocity.lerp(directionToHover.multiplyScalar(5), 0.05); 
+                        if(distanceToPlayer < enemyProps.sightRange && data.attackCooldown <= 0) { 
+                            const projectile = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: 0xcc00ff, emissive: 0xcc00ff, emissiveIntensity: 2 })); 
+                            projectile.position.copy(alien.position); 
+                            projectile.userData.velocity = new THREE.Vector3().subVectors(playerTarget.position, alien.position).normalize().multiplyScalar(enemyProps.projectileSpeed); 
+                            alienProjectiles.push(projectile); scene.add(projectile); 
+                            data.attackCooldown = enemyProps.attackCooldown; 
+                        }
+                        if (distanceToPlayer > enemyProps.sightRange * 1.2) { 
+                            data.state = 'idle';
+                        }
+                        break;
+                }
+                alien.lookAt(alien.position.clone().add(data.velocity));
                 break;
         }
 
         const deltaPos = data.velocity.clone().multiplyScalar(delta);
         handleEnemyCollision(alien, deltaPos);
         
-        if((data.type === 'ground' || data.type === 'worm_swarm' || data.type === 'shard_roller' || data.type === 'shard_mite') && alien.position.y < enemyProps.spawnY) {
+        if((data.type === 'ground' || data.type === 'worm_swarm' || data.type === 'shard_roller' || data.type === 'shard_mite' || data.type === 'predator') && alien.position.y < enemyProps.spawnY) {
             alien.position.y = enemyProps.spawnY;
              if (data.state !== 'leaping') {
                  data.velocity.y = 0;
@@ -621,7 +791,9 @@ function updateAlienProjectiles(delta) {
         else { targetPos = spacecraft.position; hitRadius = 5.0; }
         if (p.position.distanceTo(targetPos) < hitRadius) {
             if (player.state === 'on_foot' || player.state === 'driving_motorcycle') {
-                health = Math.max(0, health - 10); playSound('player_damage');
+                health = Math.max(0, health - 10);
+                lastAttackerPosition = p.position.clone();
+                playSound('player_damage');
             }
             scene.remove(p); alienProjectiles.splice(i, 1);
         } else if (p.position.y < -10) {
@@ -642,7 +814,9 @@ function updateCyborgProjectiles(delta) {
         else if (player.state === 'driving_motorcycle') { targetPos = motorcycle.position; hitRadius = 3.0; }
         else { continue; }
         if (p.position.distanceTo(targetPos) < hitRadius) {
-            health = Math.max(0, health - 15); playSound('player_damage'); damageFlashElement.style.opacity = 0.5;
+            health = Math.max(0, health - 15);
+            lastAttackerPosition = p.position.clone();
+            playSound('player_damage'); damageFlashElement.style.opacity = 0.5;
             scene.remove(p); cyborgProjectiles.splice(i, 1);
         } else if (p.position.y < -10) {
             scene.remove(p); cyborgProjectiles.splice(i, 1);
@@ -666,6 +840,7 @@ function updateBombs(delta) {
             else { targetPos = null; }
             if(targetPos && b.position.distanceTo(targetPos) < hitRadius) {
                  health = Math.max(0, health - 40);
+                 lastAttackerPosition = b.position.clone();
                  hit = true;
             }
         }
@@ -688,7 +863,9 @@ function updateShardProjectiles(delta) {
         else if (player.state === 'driving_motorcycle') { targetPos = motorcycle.position; hitRadius = 3.0; }
         else { continue; } 
         if (p.position.distanceTo(targetPos) < hitRadius) {
-            health = Math.max(0, health - 10); playSound('player_damage');
+            health = Math.max(0, health - 10);
+            lastAttackerPosition = p.position.clone();
+            playSound('player_damage');
             createHitScatter(p.position, 0xeeccff);
             scene.remove(p); shardProjectiles.splice(i, 1);
         } else if (p.position.y < -10) {
