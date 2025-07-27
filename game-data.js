@@ -69,8 +69,17 @@ const GameData = {
                 group.scale.setScalar(1.2);
                 return group;
             },
+            // MODIFIED: Updated the hudIcon function to draw a simple black capsule.
             hudIcon: (ctx) => {
-                ctx.fillStyle = '#00ff88'; ctx.fillRect(15, 5, 20, 40); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(15, 5, 20, 5); ctx.fillRect(15, 40, 20, 5);
+                const w = ctx.canvas.width;
+                const h = ctx.canvas.height;
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                // Use roundRect which is perfect for creating a capsule shape.
+                // The radius is set to half the height to create fully rounded ends.
+                ctx.roundRect(w * 0.3, h * 0.2, w * 0.4, h * 0.6, h * 0.3);
+                ctx.fill();
             }
         },
         glowing_orb: {
@@ -114,6 +123,31 @@ const GameData = {
                 }
                 group.scale.setScalar(0.8);
                 return group;
+            },
+            hudIcon: (ctx) => {
+                const w = ctx.canvas.width;
+                const h = ctx.canvas.height;
+                ctx.clearRect(0, 0, w, h);
+                // Frame
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(w * 0.1, h * 0.25, w * 0.8, h * 0.5); // Main band
+                ctx.fillRect(w * 0.4, h * 0.15, w * 0.2, h * 0.7); // Bridge
+                // Lenses
+                ctx.fillStyle = '#00ff00';
+                ctx.beginPath();
+                ctx.arc(w * 0.3, h * 0.5, w * 0.18, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(w * 0.7, h * 0.5, w * 0.18, 0, Math.PI * 2);
+                ctx.fill();
+                // Lens glare
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.beginPath();
+                ctx.arc(w * 0.25, h * 0.45, w * 0.08, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(w * 0.65, h * 0.45, w * 0.08, 0, Math.PI * 2);
+                ctx.fill();
             }
         },
         ammo_shotgun: {
