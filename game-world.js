@@ -16,9 +16,12 @@ const GameWorld = {
             fuelCells: 0,
             carriedObject: null, 
             isSafeInBunker: false,
-            isSafeInShelter: false, // New property for plant shelter
+            isSafeInShelter: false,
             hasXRayGoggles: false,
             xrayGogglesActive: false,
+            gogglesBattery: 20,
+            maxGogglesBattery: 20,
+            gogglesCooldown: 0,
         }
     },
     
@@ -26,6 +29,7 @@ const GameWorld = {
         city: {
             name: 'City',
             spawnRange: 190,
+            initialAlienCount: 15,
             fogColor: 0x8899aa,
             create: (scene, buildingColliders) => {
                 const mistColor = GameWorld.levels.city.fogColor;
@@ -35,7 +39,6 @@ const GameWorld = {
                 const directionalLight = new THREE.DirectionalLight(0xffa500, 0.7); directionalLight.position.set(50, 50, 25); directionalLight.castShadow = true; directionalLight.shadow.mapSize.width = 2048; directionalLight.shadow.mapSize.height = 2048; directionalLight.shadow.camera.left = -100; directionalLight.shadow.camera.right = 100; directionalLight.shadow.camera.top = 100; directionalLight.shadow.camera.bottom = -100; scene.add(directionalLight);
                 const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.9 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
                 
-                // Landing pad is now visual only
                 const padHeight = 0.2;
                 const landingPadGeo = new THREE.CylinderGeometry(15, 15, padHeight, 32);
                 const landingPadMat = new THREE.MeshStandardMaterial({color: 0x222228, metalness: 0.5, roughness: 0.8});
@@ -60,6 +63,7 @@ const GameWorld = {
         desert: {
             name: 'Desert',
             spawnRange: 380,
+            initialAlienCount: 20,
             fogColor: 0xd2b48c,
             create: (scene, buildingColliders) => {
                 const desertColor = GameWorld.levels.desert.fogColor;
@@ -84,6 +88,7 @@ const GameWorld = {
         volcanic: {
             name: 'Volcanic',
             spawnRange: 380,
+            initialAlienCount: 25,
             fogColor: 0x221105,
             create: (scene, buildingColliders) => {
                 scene.background = new THREE.Color(GameWorld.levels.volcanic.fogColor);
@@ -101,21 +106,16 @@ const GameWorld = {
                     buildingColliders.push(new THREE.Box3().setFromObject(rock));
                 }
 
-                // --- PYRAMID AND OBBY ---
                 const pyramidHeight = 60;
                 const pyramidBaseSize = 80;
                 const pyramidMat = new THREE.MeshStandardMaterial({ color: 0x181818, roughness: 0.8 });
-                // Use ConeGeometry for a proper 4-sided pyramid, which aligns correctly by default.
                 const pyramidGeo = new THREE.ConeGeometry(pyramidBaseSize / 2, pyramidHeight, 4);
                 const pyramid = new THREE.Mesh(pyramidGeo, pyramidMat);
                 pyramid.position.y = pyramidHeight / 2;
                 pyramid.castShadow = true;
                 pyramid.receiveShadow = true;
                 scene.add(pyramid);
-
-                // --- NEW MESH COLLIDER ---
-                // Instead of stacked boxes, we add the pyramid mesh directly to the colliders.
-                // We'll give it a special type so our player update function knows how to handle it.
+                
                 pyramid.userData.colliderType = 'mesh';
                 buildingColliders.push(pyramid);
 
@@ -133,13 +133,12 @@ const GameWorld = {
                 const totalRotations = 5;
                 const stepSize = 4;
                 const stepThickness = 0.5;
-                const obbyHeight = pyramidHeight - 3; // Obby stops 3 units below the top platform
+                const obbyHeight = pyramidHeight - 3; 
 
                 for (let i = 0; i < numSteps; i++) {
-                    const progress = i / (numSteps - 1); // Go from 0 to 1
-                    const y = progress * obbyHeight + 2.0; // Start at y=2, end at y=obbyHeight+2
+                    const progress = i / (numSteps - 1); 
+                    const y = progress * obbyHeight + 2.0; 
                     
-                    // Radius of pyramid at this y
                     const radiusAtY = (1 - (y / pyramidHeight)) * (pyramidBaseSize / 2);
                     
                     const angle = progress * totalRotations * Math.PI * 2;
@@ -170,6 +169,7 @@ const GameWorld = {
         ice: {
             name: 'Ice',
             spawnRange: 380,
+            initialAlienCount: 18,
             fogColor: 0xeeeeff,
             create: (scene, buildingColliders) => {
                 scene.background = new THREE.Color(GameWorld.levels.ice.fogColor);
@@ -187,7 +187,7 @@ const GameWorld = {
                     const box = new THREE.Box3().setFromObject(rock);
                     const size = new THREE.Vector3();
                     box.getSize(size);
-                    box.expandByVector(size.multiplyScalar(-0.15)); // Shrink to 70%
+                    box.expandByVector(size.multiplyScalar(-0.15)); 
                     buildingColliders.push(box);
                 }
                 const ruinMat = new THREE.MeshStandardMaterial({color:0x778899, roughness:0.8});
@@ -200,7 +200,7 @@ const GameWorld = {
                     const box = new THREE.Box3().setFromObject(ruin);
                     const boxSize = new THREE.Vector3();
                     box.getSize(boxSize);
-                    box.expandByVector(boxSize.multiplyScalar(-0.01)); // Shrink 
+                    box.expandByVector(boxSize.multiplyScalar(-0.01)); 
                     buildingColliders.push(box);
                 }
                 const createCastle = (pos) => {
@@ -241,7 +241,7 @@ const GameWorld = {
                             scene.add(step); 
                             buildingColliders.push(new THREE.Box3().setFromObject(step)); 
                         }
-                        if (sx === 1 && sz === 1) { // Designate the top-right tower
+                        if (sx === 1 && sz === 1) { 
                              designatedTowerTopPos = new THREE.Vector3(tPos.x, towerHeight, tPos.z);
                         }
                     })});
@@ -262,6 +262,7 @@ const GameWorld = {
         toxic: {
             name: 'Toxic',
             spawnRange: 380,
+            initialAlienCount: 30,
             fogColor: 0x445544,
             fogDensity: 0.015,
             create: (scene, buildingColliders, vegetation, bunkers) => {
@@ -282,7 +283,7 @@ const GameWorld = {
                     const box = new THREE.Box3().setFromObject(rock);
                     const size = new THREE.Vector3();
                     box.getSize(size);
-                    box.expandByVector(size.multiplyScalar(-0.15)); // Shrink to 70%
+                    box.expandByVector(size.multiplyScalar(-0.15)); 
                     buildingColliders.push(box);
                 }
                 
@@ -317,11 +318,10 @@ const GameWorld = {
                 }
                 scene.add(instancedGrass);
                 
-                // --- NEW: Add tall shelter plants ---
                 const shelterPlantMat = new THREE.MeshStandardMaterial({color: 0x338833, roughness: 0.9});
                 for (let i = 0; i < 300; i++) {
                     const shelterPlant = new THREE.Group();
-                    const height = Math.random() * 10 + 8; // Tall plants
+                    const height = Math.random() * 10 + 8; 
                     const stem = new THREE.Mesh(
                         new THREE.CylinderGeometry(0.1, 0.15, height, 5),
                         shelterPlantMat
@@ -330,10 +330,37 @@ const GameWorld = {
                     shelterPlant.add(stem);
                     shelterPlant.position.set((Math.random() - 0.5) * 380, 0, (Math.random() - 0.5) * 380);
                     shelterPlant.castShadow = true;
-                    shelterPlant.userData.isShelter = true; // Mark as shelter
-                    vegetation.push(shelterPlant); // Add to vegetation array for checks
+                    shelterPlant.userData.isShelter = true; 
+                    vegetation.push(shelterPlant); 
                     scene.add(shelterPlant);
-                    // NOTE: Not adding to buildingColliders, so player can walk through
+                }
+
+                const treeTrunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3b2a, roughness: 0.9 });
+                const treeLeafMat = new THREE.MeshStandardMaterial({ color: 0x223322, roughness: 0.8 });
+                for (let i = 0; i < 70; i++) {
+                    const tree = new THREE.Group();
+                    const height = Math.random() * 20 + 30; 
+                    const radius = Math.random() * 1 + 0.8;
+                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.8, height, 12), treeTrunkMat);
+                    trunk.position.y = height / 2;
+                    trunk.castShadow = true;
+                    tree.add(trunk);
+                    
+                    const canopy = new THREE.Mesh(new THREE.SphereGeometry(radius * 5, 8, 6), treeLeafMat);
+                    canopy.position.y = height;
+                    canopy.castShadow = true;
+                    tree.add(canopy);
+                    
+                    tree.position.set((Math.random() - 0.5) * 380, 0, (Math.random() - 0.5) * 380);
+                    tree.userData.isShelter = true;
+                    tree.userData.isTree = true;
+                    vegetation.push(tree);
+                    scene.add(tree);
+                    
+                    tree.updateMatrixWorld(true);
+                    
+                    const trunkCollider = new THREE.Box3().setFromObject(trunk);
+                    buildingColliders.push(trunkCollider);
                 }
 
                 return { ground, hemisphereLight, directionalLight, landingPadPosition: null, bunkers };
@@ -343,6 +370,7 @@ const GameWorld = {
         crystal: {
             name: 'Crystal',
             spawnRange: 380,
+            initialAlienCount: 35,
             fogColor: 0x110022,
             create: (scene, buildingColliders) => {
                 scene.background = new THREE.Color(GameWorld.levels.crystal.fogColor);
@@ -388,7 +416,7 @@ const GameWorld = {
                     const box = new THREE.Box3().setFromObject(crystal);
                     const size = new THREE.Vector3();
                     box.getSize(size);
-                    box.expandByVector(size.multiplyScalar(-0.2)); // Shrink to 60%
+                    box.expandByVector(size.multiplyScalar(-0.2)); 
                     buildingColliders.push(box);
                 }
                 const serverMat = new THREE.MeshStandardMaterial({
@@ -404,12 +432,11 @@ const GameWorld = {
                     const box = new THREE.Box3().setFromObject(server);
                     const size = new THREE.Vector3();
                     box.getSize(size);
-                    box.expandByVector(size.multiplyScalar(-0.1)); // Shrink to 80%
+                    box.expandByVector(size.multiplyScalar(-0.1)); 
                     buildingColliders.push(box);
                 }
-
-                // --- MAZE GENERATION ---
-                const mazeGridSize = 25; // An odd number works best for grids
+                
+                const mazeGridSize = 25; 
                 const cellSize = 8;
                 const wallHeight = 6;
                 const wallThickness = 1.0;
@@ -443,7 +470,6 @@ const GameWorld = {
                         } else if (stack.length > 0) {
                             current = stack.pop();
                         } else {
-                             // Find an unvisited cell and start a new path
                             let found = false;
                             for(let r=0; r<size; r++) {
                                 for(let c=0; c<size; c++) {
@@ -501,7 +527,6 @@ const GameWorld = {
                         }
                     }
                 }
-                // --- END MAZE ---
 
                 const wallMat = new THREE.MeshStandardMaterial({
                     color: 0xaa88ff,
