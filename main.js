@@ -5,8 +5,8 @@
  */
 
 // --- GLOBAL SETUP ---
-let scene, camera, renderer, controls, audioListener;
-let playerObject, damageFlashElement, mapCanvas, mapCtx, mapBackgroundCanvas, attackIndicator;
+let scene, camera, renderer, controls, audioListener, stereoCamera;
+let playerObject, damageFlashElement, mapCanvas, mapCtx, mapBackgroundCanvas, attackIndicatorContainer;
 let levelObjects = {}; // To hold ground, lights etc. for easy removal
 const clock = new THREE.Clock();
 
@@ -15,7 +15,7 @@ const gameSounds = {};
 let backgroundMusic;
 let hasInteracted = false;
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-const gameSettings = { sfxVolume: 0.4, musicVolume: 0.2, touchControlsEnabled: isTouchDevice };
+const gameSettings = { sfxVolume: 0.4, musicVolume: 0.2, touchControlsEnabled: isTouchDevice, sbs3dEnabled: false, retroEffectEnabled: false };
 
 
 // --- GAME OBJECTS & COLLECTIONS ---
@@ -63,6 +63,7 @@ function init() {
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, GameWorld.player.height, 0);
+    stereoCamera = new THREE.StereoCamera();
     audioListener = new THREE.AudioListener();
     camera.add(audioListener);
     loadSounds();
@@ -71,7 +72,7 @@ function init() {
     playerObject.add(camera);
     scene.add(playerObject);
 
-    attackIndicator = document.getElementById('attack-indicator');
+    attackIndicatorContainer = document.getElementById('attack-indicator-container');
     damageFlashElement = document.getElementById('damage-flash');
     mapCanvas = document.getElementById('map-canvas');
     mapCtx = mapCanvas.getContext('2d');
@@ -114,10 +115,20 @@ function init() {
 }
 
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    if (gameSettings.sbs3dEnabled) {
+        stereoCamera.aspect = (w / 2) / h;
+    } else {
+        camera.aspect = w / h;
+    }
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    stereoCamera.update(camera);
+    
+    renderer.setSize(w, h);
 }
+
 
 // --- CORE GAME STATE & LOOP ---
 
@@ -342,6 +353,8 @@ function animate() {
     }
 
     if (!isPaused || gameSettings.touchControlsEnabled) {
+        updateGamepadControls(delta);
+
         switch(player.state) {
             case 'on_foot':
                 if (mouse.isDown && ['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name)) shoot();
@@ -368,6 +381,7 @@ function animate() {
         if (player.state === 'on_foot' || player.state === 'driving_motorcycle') {
             updateHUD();
             updateCollectibles(delta);
+            updateCompass();
         }
 
         if (currentLevel === 'toxic') updateToxicStorm(delta);
@@ -394,7 +408,27 @@ function animate() {
     updateGun(delta);
     updateAttackIndicator();
     
-    renderer.render(scene, camera);
+    if (gameSettings.sbs3dEnabled) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        
+        stereoCamera.update(camera);
+        renderer.setScissorTest(true);
+
+        // Render left eye
+        renderer.setScissor(0, 0, w / 2, h);
+        renderer.setViewport(0, 0, w / 2, h);
+        renderer.render(scene, stereoCamera.cameraL);
+        
+        // Render right eye
+        renderer.setScissor(w / 2, 0, w / 2, h);
+        renderer.setViewport(w / 2, 0, w / 2, h);
+        renderer.render(scene, stereoCamera.cameraR);
+
+        renderer.setScissorTest(false);
+    } else {
+        renderer.render(scene, camera);
+    }
 }
 
 function toggleXRayEffect(isActive) {
