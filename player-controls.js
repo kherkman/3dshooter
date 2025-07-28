@@ -6,8 +6,9 @@
 
 const levelOrder = ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'];
 
-// --- TOUCH CONTROLS STATE ---
+// --- TOUCH & GAMEPAD CONTROLS STATE ---
 const touchState = {}; // Keyed by touch identifier
+let gamepad = null;
 
 function setupControls() {
     const mapContainer = document.getElementById('map-container');
@@ -20,9 +21,13 @@ function setupControls() {
         const movementX = event.movementX || 0;
         const movementY = event.movementY || 0;
         
-        if (player.state === 'on_foot' || player.state === 'driving_motorcycle') {
+        if (player.state === 'on_foot') {
             playerObject.rotation.y -= movementX * 0.002;
             camera.rotation.x -= movementY * 0.002;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        } else if (player.state === 'driving_motorcycle' && motorcycle) {
+            motorcycle.rotation.y -= movementX * 0.002; // Steer the bike directly
+            camera.rotation.x -= movementY * 0.002; // Allow looking up/down
             camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
         }
     };
@@ -178,6 +183,20 @@ function setupControls() {
     const sfxSlider = document.getElementById('sfx-volume'); sfxSlider.value = gameSettings.sfxVolume; sfxSlider.addEventListener('input', (e) => { gameSettings.sfxVolume = parseFloat(e.target.value); });
     const musicSlider = document.getElementById('music-volume'); musicSlider.value = gameSettings.musicVolume; musicSlider.addEventListener('input', (e) => { gameSettings.musicVolume = parseFloat(e.target.value); if(backgroundMusic) backgroundMusic.setVolume(gameSettings.musicVolume); });
     
+    const sbs3dButton = document.getElementById('sbs-3d-button');
+    sbs3dButton.addEventListener('click', () => {
+        gameSettings.sbs3dEnabled = !gameSettings.sbs3dEnabled;
+        sbs3dButton.textContent = `Side-by-Side 3D: ${gameSettings.sbs3dEnabled ? 'ON' : 'OFF'}`;
+        onWindowResize(); 
+    });
+    
+    const retroEffectButton = document.getElementById('retro-effect-button');
+    retroEffectButton.addEventListener('click', () => {
+        gameSettings.retroEffectEnabled = !gameSettings.retroEffectEnabled;
+        retroEffectButton.textContent = `Retro Effect: ${gameSettings.retroEffectEnabled ? 'ON' : 'OFF'}`;
+        document.getElementById('retro-overlay').classList.toggle('active', gameSettings.retroEffectEnabled);
+    });
+
     const handleInventoryInteraction = (e) => {
         e.preventDefault();
         const itemEl = e.target.closest('.inventory-item');
@@ -273,8 +292,12 @@ function setupControls() {
                 state.currentX = touch.clientX;
                 state.currentY = touch.clientY;
 
-                if (player.state === 'on_foot' || player.state === 'driving_motorcycle') {
+                if (player.state === 'on_foot') {
                     playerObject.rotation.y -= movementX * 0.0035; 
+                    camera.rotation.x -= movementY * 0.0035;
+                    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+                } else if (player.state === 'driving_motorcycle' && motorcycle) {
+                    motorcycle.rotation.y -= movementX * 0.0035;
                     camera.rotation.x -= movementY * 0.0035;
                     camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
                 }
@@ -373,6 +396,78 @@ function setupControls() {
     if (toggleTouchButton) {
         toggleTouchButton.addEventListener('click', toggleTouchControlsEnabled);
     }
+    
+    window.addEventListener('gamepadconnected', (event) => {
+        console.log('Gamepad connected:', event.gamepad.id);
+        gamepad = event.gamepad;
+    });
+
+    window.addEventListener('gamepaddisconnected', () => {
+        console.log('Gamepad disconnected.');
+        gamepad = null;
+    });
+}
+
+function updateGamepadControls(delta) {
+    if (!gamepad) return;
+
+    const currentGamepad = navigator.getGamepads()[gamepad.index];
+    if (!currentGamepad) return;
+
+    const deadzone = 0.2;
+
+    const lookX = currentGamepad.axes[2];
+    const lookY = currentGamepad.axes[3];
+
+    if (player.state === 'on_foot') {
+        if (Math.abs(lookX) > deadzone) {
+            playerObject.rotation.y -= lookX * 0.04;
+        }
+        if (Math.abs(lookY) > deadzone) {
+            camera.rotation.x -= lookY * 0.04;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        }
+    } else if (player.state === 'driving_motorcycle' && motorcycle) {
+        if (Math.abs(lookX) > deadzone) {
+            motorcycle.rotation.y -= lookX * 0.04;
+        }
+        if (Math.abs(lookY) > deadzone) {
+            camera.rotation.x -= lookY * 0.04;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        }
+    }
+
+    const moveX = currentGamepad.axes[0];
+    const moveY = currentGamepad.axes[1];
+    keys['KeyA'] = moveX < -deadzone;
+    keys['KeyD'] = moveX > deadzone;
+    keys['KeyW'] = moveY < -deadzone;
+    keys['KeyS'] = moveY > deadzone;
+
+    keys['Space'] = currentGamepad.buttons[0].pressed;
+
+    const weaponData = GameData.weapons[player.currentWeaponIndex];
+    if (currentGamepad.buttons[7].pressed) {
+        if (['Machine Gun', 'Plasma Gun'].includes(weaponData.name)) {
+            mouse.isDown = true;
+        } else if (!mouse.isDown) {
+            shoot();
+        }
+        mouse.isDown = true;
+    } else {
+        mouse.isDown = false;
+    }
+
+    if (currentGamepad.buttons[2].pressed && !fKeyPressed) {
+        keys['KeyF'] = true;
+        fKeyPressed = true;
+    } else if (!currentGamepad.buttons[2].pressed) {
+        keys['KeyF'] = false;
+        fKeyPressed = false;
+    }
+    
+    if (currentGamepad.buttons[4].pressed) changeWeapon(-1);
+    if (currentGamepad.buttons[5].pressed) changeWeapon(1);
 }
 
 function toggleTouchControlsEnabled() {
@@ -473,7 +568,7 @@ function changeWeapon(direction) {
 
 function updatePlayer(delta) {
     const isMovingByTouch = Object.keys(touchState).length > 0;
-    if (player.state !== 'on_foot' || isGameOver || (!controls.isLocked && !isMovingByTouch)) {
+    if (player.state !== 'on_foot' || isGameOver || (!controls.isLocked && !isMovingByTouch && !gamepad)) {
         player.velocity.x *= GameWorld.player.damping;
         player.velocity.z *= GameWorld.player.damping;
         return;
@@ -640,7 +735,8 @@ function updatePlayerVehicle(delta) {
     if (!motorcycle) return;
     const bikeData = motorcycle.userData;
     const bikeProps = GameData.vehicles.motorcycle.properties;
-    
+
+    // Movement is based on W/S keys
     bikeData.velocity.multiplyScalar(bikeProps.damping);
     
     const bikeForward = new THREE.Vector3(0, 0, 1).applyQuaternion(motorcycle.quaternion);
@@ -648,19 +744,11 @@ function updatePlayerVehicle(delta) {
     if(keys['KeyW']) bikeData.velocity.add(bikeForward.clone().multiplyScalar(bikeProps.speed * delta));
     if(keys['KeyS']) bikeData.velocity.sub(bikeForward.clone().multiplyScalar(bikeProps.speed * 0.5 * delta));
     
-    const playerForward = new THREE.Vector3(0, 0, -1).applyQuaternion(playerObject.quaternion);
-    const angle = bikeForward.angleTo(playerForward);
-
-    if (angle > 0.1) {
-        const cross = new THREE.Vector3().crossVectors(bikeForward, playerForward);
-        const turnDirection = cross.y > 0 ? 1 : -1;
-        motorcycle.rotation.y += bikeProps.turnSpeed * turnDirection * delta;
-    }
-
     if (keys['Space'] && bikeData.onGround) {
         bikeData.verticalVelocity = bikeProps.jumpForce;
     }
 
+    // Physics
     const deltaPos = bikeData.velocity.clone().multiplyScalar(delta);
     const bikeBox = new THREE.Box3().setFromObject(motorcycle);
     for (const c of buildingColliders) {
@@ -696,8 +784,10 @@ function updatePlayerVehicle(delta) {
         bikeData.onGround = true;
     }
     
+    // Lock the player to the bike's position and rotation, maintaining the forward-facing offset
     const driverPos = motorcycle.position.clone().add(new THREE.Vector3(0, GameWorld.player.height - 0.5, 0));
     playerObject.position.copy(driverPos);
+    playerObject.quaternion.setFromEuler(new THREE.Euler(0, motorcycle.rotation.y + Math.PI, 0));
 }
 
 function throwCarriedObject() {
@@ -725,7 +815,7 @@ function updateInteractions() {
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     const interactionPromptElement = document.getElementById('interaction-prompt');
 
-    if ((!controls.isLocked && !isTouchDevice) || player.state !== 'on_foot') {
+    if ((!controls.isLocked && !isTouchDevice && !gamepad) || player.state !== 'on_foot') {
         interactionPromptElement.style.display = 'none';
         return;
     }
@@ -793,11 +883,11 @@ function enterSpacecraft() {
 function enterMotorcycle() {
     if (player.state !== 'on_foot' || player.carriedObject) return;
     player.state = 'driving_motorcycle';
-    motorcycle.visible = false; 
     gunModels.forEach(g => g.visible = false);
     const index = interactables.findIndex(i => i.mesh === motorcycle);
     if (index > -1) interactables.splice(index, 1);
     
+    // Align player rotation with bike's front
     playerObject.rotation.y = motorcycle.rotation.y + Math.PI;
     camera.rotation.x = 0;
 }
