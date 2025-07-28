@@ -260,6 +260,7 @@ function updateCollectibles(delta) {
             }
 
             scene.remove(itemObject);
+            showPickupNotification(GameData.items[itemKey].name);
             collectibles[itemKey] = null;
             setTimeout(() => spawnItem(itemKey), GameData.items[itemKey].respawnTime);
         }
@@ -313,7 +314,9 @@ function updateCollectibles(delta) {
                 }
                 if (collected) {
                     const itemData = GameData.items[p.userData.key];
-                    scene.remove(p); arr.splice(i, 1);
+                    scene.remove(p); 
+                    showPickupNotification(itemData.name);
+                    arr.splice(i, 1);
                     if (itemData.respawnTime) {
                         setTimeout(() => spawnItem(p.userData.key), itemData.respawnTime);
                     }
@@ -335,7 +338,9 @@ function updateCollectibles(delta) {
             if(wData.properties.ammoType !== 'axe' && wData.properties.ammoType !== 'pistol') {
                  player.ammo[wData.properties.ammoType] += player.ammo[wData.properties.ammoType] > 0 ? 5 : 10;
             }
-            scene.remove(p); collectibles.weaponPickups.splice(i, 1);
+            scene.remove(p); 
+            collectibles.weaponPickups.splice(i, 1);
+            showPickupNotification(wData.name);
             if (player.state === 'on_foot') setActiveWeapon(wIdx);
         }
     }
