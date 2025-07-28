@@ -61,6 +61,8 @@
             <div class="options-buttons">
                 <button id="show-touch-controls-options">Show Touch Controls</button>
                 <button id="toggle-touch-button">Touch Controls: ON</button>
+                <button id="sbs-3d-button">Side-by-Side 3D: OFF</button>
+                <button id="retro-effect-button">Retro Effect: OFF</button>
                 <button id="fullscreen-button">Toggle Fullscreen</button>
                 <button id="restart-button-options">Restart Game</button>
                 <button id="close-options">Close</button>
@@ -161,7 +163,8 @@
             <div id="debug-scrollbar-track"><div id="debug-scrollbar-thumb"></div></div>
         </div>
     </div>
-
+    
+    <div id="retro-overlay"></div>
     <div id="damage-flash"></div>
     <div id="map-container"><canvas id="map-canvas" width="500" height="500"></canvas></div>
     <div id="interaction-prompt"></div>
@@ -183,7 +186,14 @@
             </div>
         </div>
         <div class="hud-panel hud-center">
-            <div id="attack-indicator"></div>
+            <div id="attack-indicator-container">
+                <div id="attack-indicator-horizontal"></div>
+                <div id="attack-indicator-vertical"></div>
+            </div>
+            <div id="compass-container">
+                <div id="compass-arrow"></div>
+                <span id="compass-distance"></span>
+            </div>
             <canvas id="health-icon"></canvas>
             <span id="health">100</span>
             <div id="jetpack-hud-container">
