@@ -86,6 +86,14 @@ function setupControls() {
         }
         if (event.code === 'KeyR') { toggleInventoryMenu(); return; }
         if (isPaused) return;
+        
+        if (event.code === 'KeyB' && !keys['KeyB']) { // only on first press
+            keys['KeyB'] = true; 
+            if (player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) {
+                shoot();
+            }
+        }
+
         if (event.code === 'KeyF') {
             if (player.state === 'driving_motorcycle') exitMotorcycle();
             else if (!fKeyPressed) { keys[event.code] = true; fKeyPressed = true; } 
@@ -99,6 +107,7 @@ function setupControls() {
         keys[event.code] = false;
         if(event.code === 'Tab') mapContainer.style.display = 'none';
         if(event.code === 'KeyF') fKeyPressed = false;
+        if(event.code === 'KeyB') keys['KeyB'] = false;
     };
     
     document.addEventListener('pointerlockchange', () => {
@@ -261,7 +270,13 @@ function setupControls() {
                     keys['Space'] = true;
                 } 
                 else {
-                    mouse.isDown = true;
+                    // This area now simulates a 'b' key press for shooting
+                    if (!keys['KeyB']) {
+                        keys['KeyB'] = true;
+                        if (player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) {
+                           shoot();
+                        }
+                    }
                 }
             }
         }
@@ -314,7 +329,7 @@ function setupControls() {
                 keys['ArrowUp'] = false; keys['ArrowDown'] = false; keys['ArrowLeft'] = false; keys['ArrowRight'] = false;
             } else if (state.zone === 'action') {
                 keys['Space'] = false;
-                mouse.isDown = false;
+                keys['KeyB'] = false;
             }
             
             delete touchState[touch.identifier];
@@ -350,15 +365,24 @@ function setupControls() {
     const handleWeaponPress = (e) => {
         if (e.target.classList.contains('hud-button')) return;
         e.preventDefault();
-        mouse.isDown = true;
+        if (e.type.includes('mouse')) {
+            mouse.isDown = true;
+        } else if (e.type.includes('touch')) {
+            if (!keys['KeyB']) {
+                keys['KeyB'] = true;
+                if (player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) {
+                    shoot();
+                }
+            }
+        }
     };
     const handleWeaponRelease = (e) => {
         if (e.target.classList.contains('hud-button')) return;
         e.preventDefault();
-        mouse.isDown = false;
-        const isTouchEvent = e.type.includes('touch');
-        if (isTouchEvent && controls.isLocked && !isGameOver && !isPaused && player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) {
-            shoot();
+        if (e.type.includes('mouse')) {
+            mouse.isDown = false;
+        } else if (e.type.includes('touch')) {
+            keys['KeyB'] = false;
         }
     };
     weaponDisplay.addEventListener('mousedown', handleWeaponPress);
@@ -605,7 +629,6 @@ function updatePlayer(delta) {
     if (keys['KeyA']) moveVector.sub(right);
     if (keys['KeyD']) moveVector.add(right);
 
-    // --- MODIFICATION: Added arrow key camera controls ---
     const lookSpeed = 1.5; // Radians per second
     if (keys['ArrowLeft']) playerObject.rotation.y += lookSpeed * delta;
     if (keys['ArrowRight']) playerObject.rotation.y -= lookSpeed * delta;
@@ -617,7 +640,6 @@ function updatePlayer(delta) {
         camera.rotation.x -= lookSpeed * delta;
         camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
     }
-    // --- END MODIFICATION ---
 
     if (moveVector.lengthSq() > 0) {
         moveVector.normalize().multiplyScalar(GameWorld.player.speed * delta);
