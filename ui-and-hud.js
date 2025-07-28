@@ -3,6 +3,8 @@
  * Manages all user interface elements: HUD, inventory menu, map, and the debug console.
  */
 
+let pickupNotificationTimeout = null;
+
 function setupHUD() {
     GameData.items.health.hudIcon(document.getElementById('health-icon').getContext('2d'));
     GameData.items.jetpack.hudIcon(document.getElementById('jetpack-icon').getContext('2d'));
@@ -10,6 +12,23 @@ function setupHUD() {
     GameData.items.xray_goggles.hudIcon(document.getElementById('goggles-icon').getContext('2d'));
     generateWeaponSprites();
 }
+
+function showPickupNotification(itemName) {
+    const notificationElement = document.getElementById('item-pickup-notification');
+    if (!notificationElement) return;
+
+    if (pickupNotificationTimeout) {
+        clearTimeout(pickupNotificationTimeout);
+    }
+
+    notificationElement.textContent = `Collected: ${itemName}`;
+    notificationElement.style.opacity = 1;
+
+    pickupNotificationTimeout = setTimeout(() => {
+        notificationElement.style.opacity = 0;
+    }, 2500);
+}
+
 
 function generateWeaponSprites() {
     const weaponDisplayContainer = document.getElementById('weapon-display-container');
