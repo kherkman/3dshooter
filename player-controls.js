@@ -419,6 +419,15 @@ function setupControls() {
         toggleTouchButton.addEventListener('click', toggleTouchControlsEnabled);
     }
     
+    // --- MODIFICATION: Added Exit Vehicle Button Listener ---
+    const exitVehicleButton = document.getElementById('exit-vehicle-button');
+    exitVehicleButton.addEventListener('click', exitMotorcycle);
+    exitVehicleButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        exitMotorcycle();
+    });
+    // --- END MODIFICATION ---
+
     window.addEventListener('gamepadconnected', (event) => {
         console.log('Gamepad connected:', event.gamepad.id);
         gamepad = event.gamepad;
@@ -769,6 +778,20 @@ function updatePlayerVehicle(delta) {
     if (!motorcycle) return;
     const bikeData = motorcycle.userData;
     const bikeProps = GameData.vehicles.motorcycle.properties;
+
+    // --- MODIFICATION: Added arrow key/touch camera controls for hoverbike ---
+    const lookSpeed = 1.5; // Radians per second
+    if (keys['ArrowLeft']) motorcycle.rotation.y += lookSpeed * delta;
+    if (keys['ArrowRight']) motorcycle.rotation.y -= lookSpeed * delta;
+    if (keys['ArrowUp']) {
+        camera.rotation.x += lookSpeed * delta;
+        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+    }
+    if (keys['ArrowDown']) {
+        camera.rotation.x -= lookSpeed * delta;
+        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+    }
+    // --- END MODIFICATION ---
 
     // Movement is based on W/S keys
     bikeData.velocity.multiplyScalar(bikeProps.damping);
