@@ -359,4 +359,15 @@ h1, p { text-shadow: 1px 1px 3px #000; }
     opacity: 0;
     transition: opacity 0.5s ease-in-out;
     pointer-events: none;
-}```
+}
+
+#exit-vehicle-button {
+    position: absolute;
+    bottom: 130px; /* Above the main HUD */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 51; /* Above the main HUD but below menus */
+    display: none; /* Hidden by default */
+    width: auto;
+    padding: 10px 20px;
+}
