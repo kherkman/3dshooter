@@ -357,14 +357,16 @@ function animate() {
 
         switch(player.state) {
             case 'on_foot':
-                if (mouse.isDown && ['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name)) shoot();
+                if ((mouse.isDown || keys['KeyB']) && ['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name)) {
+                    shoot();
+                }
                 if (health < lastHealth) { damageFlashElement.style.opacity = 0.5; setTimeout(() => { damageFlashElement.style.opacity = 0; }, 120); }
                 lastHealth = health;
                 updatePlayer(delta);
                 updateInteractions();
                 break;
             case 'driving_motorcycle':
-                if (mouse.isDown) shoot();
+                if (mouse.isDown || keys['KeyB']) shoot();
                 updatePlayerVehicle(delta);
                 break;
             case 'entering_spacecraft':
