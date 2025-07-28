@@ -106,28 +106,83 @@ function updateHUD() {
 }
 
 function updateAttackIndicator() {
-    if (!lastAttackerPosition || !attackIndicator) return;
+    const indicatorContainer = document.getElementById('attack-indicator-container');
+    const horizontalArrow = document.getElementById('attack-indicator-horizontal');
+    const verticalArrow = document.getElementById('attack-indicator-vertical');
 
-    // Convert attacker position to local space of the player object
+    if (!lastAttackerPosition || !indicatorContainer || !horizontalArrow || !verticalArrow) return;
+
+    // Convert attacker world position to player's local space
     const localAttackerPos = playerObject.worldToLocal(lastAttackerPosition.clone());
 
-    // Calculate angle on the XZ plane
-    const angle = Math.atan2(localAttackerPos.x, localAttackerPos.z);
-    
-    // Apply rotation to the indicator (plus 180 degrees to point from the center)
-    attackIndicator.style.transform = `translateY(-50%) rotate(${angle}rad)`;
-    attackIndicator.style.opacity = 1;
+    // --- Horizontal Angle (Yaw) ---
+    // Calculate angle on the XZ plane relative to player's forward (-Z)
+    const horizontalAngle = Math.atan2(localAttackerPos.x, -localAttackerPos.z);
+    horizontalArrow.style.transform = `translate(-50%, -100%) rotate(${horizontalAngle}rad)`;
+
+    // --- Vertical Angle (Pitch) ---
+    const verticalThreshold = 1.5; // Attacker must be this much higher/lower to show arrow
+    if (localAttackerPos.y > verticalThreshold) {
+        verticalArrow.style.display = 'block';
+        verticalArrow.classList.add('up');
+    } else if (localAttackerPos.y < -verticalThreshold) {
+        verticalArrow.style.display = 'block';
+        verticalArrow.classList.remove('up');
+    } else {
+        verticalArrow.style.display = 'none';
+    }
+
+    // Show the indicator
+    indicatorContainer.style.opacity = 1;
 
     // Clear any existing timeout
     if (attackIndicatorTimeout) clearTimeout(attackIndicatorTimeout);
 
     // Set a new timeout to hide the indicator
     attackIndicatorTimeout = setTimeout(() => {
-        attackIndicator.style.opacity = 0;
+        indicatorContainer.style.opacity = 0;
     }, 2000);
 
     // Reset the attacker position so this only runs once per hit
     lastAttackerPosition = null;
+}
+
+function updateCompass() {
+    const compassContainer = document.getElementById('compass-container');
+    const compassArrow = document.getElementById('compass-arrow');
+    const compassDistance = document.getElementById('compass-distance');
+
+    if (!compassContainer || !compassArrow || !compassDistance) return;
+
+    // Hide if no spacecraft exists in the scene
+    if (!spacecraft || !spacecraft.parent) {
+        compassContainer.style.display = 'none';
+        return;
+    }
+
+    compassContainer.style.display = 'flex';
+
+    // --- Calculate Angle ---
+    const playerForward = new THREE.Vector3();
+    camera.getWorldDirection(playerForward);
+    playerForward.y = 0; // Project onto horizontal plane
+    playerForward.normalize();
+
+    const dirToSpacecraft = spacecraft.position.clone().sub(playerObject.position);
+    dirToSpacecraft.y = 0; // Project onto horizontal plane
+    dirToSpacecraft.normalize();
+
+    // Get the world angle of each vector
+    const playerAngle = Math.atan2(playerForward.x, playerForward.z);
+    const spacecraftAngle = Math.atan2(dirToSpacecraft.x, dirToSpacecraft.z);
+
+    // The rotation is the difference between the angles
+    const rotationAngle = spacecraftAngle - playerAngle;
+    compassArrow.style.transform = `rotate(${rotationAngle}rad)`;
+
+    // --- Calculate Distance ---
+    const distance = playerObject.position.distanceTo(spacecraft.position);
+    compassDistance.textContent = `${Math.round(distance)}m`;
 }
 
 function updateInventoryMenu() {
