@@ -287,20 +287,16 @@ function setupControls() {
                 keys['KeyA'] = dx < -deadZone;
                 keys['KeyD'] = dx > deadZone;
             } else if (state.zone === 'look') {
-                const movementX = touch.clientX - state.currentX;
-                const movementY = touch.clientY - state.currentY;
                 state.currentX = touch.clientX;
                 state.currentY = touch.clientY;
+                const dx = state.currentX - state.startX;
+                const dy = state.currentY - state.startY;
+                const deadZone = 20;
 
-                if (player.state === 'on_foot') {
-                    playerObject.rotation.y -= movementX * 0.0035; 
-                    camera.rotation.x -= movementY * 0.0035;
-                    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
-                } else if (player.state === 'driving_motorcycle' && motorcycle) {
-                    motorcycle.rotation.y -= movementX * 0.0035;
-                    camera.rotation.x -= movementY * 0.0035;
-                    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
-                }
+                keys['ArrowUp'] = dy < -deadZone;
+                keys['ArrowDown'] = dy > deadZone;
+                keys['ArrowLeft'] = dx < -deadZone;
+                keys['ArrowRight'] = dx > deadZone;
             }
         }
     };
@@ -314,6 +310,8 @@ function setupControls() {
 
             if (state.zone === 'move') {
                 keys['KeyW'] = false; keys['KeyS'] = false; keys['KeyA'] = false; keys['KeyD'] = false;
+            } else if (state.zone === 'look') {
+                keys['ArrowUp'] = false; keys['ArrowDown'] = false; keys['ArrowLeft'] = false; keys['ArrowRight'] = false;
             } else if (state.zone === 'action') {
                 keys['Space'] = false;
                 mouse.isDown = false;
@@ -606,6 +604,20 @@ function updatePlayer(delta) {
     if (keys['KeyS']) moveVector.sub(forward);
     if (keys['KeyA']) moveVector.sub(right);
     if (keys['KeyD']) moveVector.add(right);
+
+    // --- MODIFICATION: Added arrow key camera controls ---
+    const lookSpeed = 1.5; // Radians per second
+    if (keys['ArrowLeft']) playerObject.rotation.y += lookSpeed * delta;
+    if (keys['ArrowRight']) playerObject.rotation.y -= lookSpeed * delta;
+    if (keys['ArrowUp']) {
+        camera.rotation.x += lookSpeed * delta;
+        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+    }
+    if (keys['ArrowDown']) {
+        camera.rotation.x -= lookSpeed * delta;
+        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+    }
+    // --- END MODIFICATION ---
 
     if (moveVector.lengthSq() > 0) {
         moveVector.normalize().multiplyScalar(GameWorld.player.speed * delta);
