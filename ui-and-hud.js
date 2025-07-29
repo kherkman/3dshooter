@@ -11,6 +11,9 @@ function setupHUD() {
     GameData.items.fuel_cell.hudIcon(document.getElementById('fuel-cell-icon').getContext('2d'));
     GameData.items.xray_goggles.hudIcon(document.getElementById('goggles-icon').getContext('2d'));
     generateWeaponSprites();
+    // --- MODIFICATION: Draw the level progression on the intro screen ---
+    drawLevelProgression('level-progression-intro');
+    // --- END MODIFICATION ---
 }
 
 function showPickupNotification(itemName) {
@@ -267,7 +270,71 @@ function updateInventoryMenu() {
     }
     invMapCtx.drawImage(mapBackgroundCanvas, 0, 0, invMapCanvas.width, invMapCanvas.height);
     updateMap(invMapCtx, invMapCanvas.width, invMapCanvas.height);
+    // --- MODIFICATION: Draw the level progression in the inventory ---
+    drawLevelProgression('level-progression-inventory');
+    // --- END MODIFICATION ---
 }
+
+// --- MODIFICATION: New function to draw the level progression ---
+function drawLevelProgression(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const levelColors = {
+        city: '#000000',
+        desert: '#F5DEB3',
+        volcanic: '#8B0000',
+        ice: '#FFFFFF',
+        toxic: '#008000',
+        crystal: '#800080'
+    };
+
+    const levelCount = GameWorld.levelOrder.length;
+    const circleRadius = 12;
+    const padding = 20;
+    const totalWidth = width - (padding * 2);
+    const spacing = totalWidth / (levelCount - 1);
+    const yPos = height / 2;
+
+    // Draw connecting lines
+    ctx.strokeStyle = '#ffaa00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(padding, yPos);
+    ctx.lineTo(width - padding, yPos);
+    ctx.stroke();
+
+    // Draw circles and highlight current level
+    GameWorld.levelOrder.forEach((levelKey, index) => {
+        const xPos = padding + index * spacing;
+
+        // Draw the main circle
+        ctx.beginPath();
+        ctx.arc(xPos, yPos, circleRadius, 0, Math.PI * 2);
+        ctx.fillStyle = levelColors[levelKey] || '#cccccc';
+        ctx.fill();
+
+        // Draw a border on all circles
+        ctx.strokeStyle = '#ffaa00';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // If it's the current level, draw a white highlight border
+        if (levelKey === currentLevel) {
+            ctx.beginPath();
+            ctx.arc(xPos, yPos, circleRadius + 3, 0, Math.PI * 2);
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+    });
+}
+// --- END MODIFICATION ---
 
 function createMapBackground() {
     mapBackgroundCanvas = document.createElement('canvas');
@@ -539,7 +606,12 @@ function showInPreview(category, key) {
                 model = enemy.model();
                 description = enemy.description;
                 model.userData.type = key; // Crucial fix for animations
-                if (key === 'predator' && model.userData.material) {
+                
+                if (key === 'dome_guardian') {
+                    model.scale.set(0.5, 0.5, 0.5);
+                    panSlider.value = 1.5;
+                    zoomSlider.value = 5;
+                } else if (key === 'predator' && model.userData.material) {
                     model.userData.material.opacity = 0.9;
                     const btn = document.createElement('button');
                     btn.textContent = 'Mouth Animate';
@@ -547,8 +619,7 @@ function showInPreview(category, key) {
                         previewAnimationState = 'mouth_animate';
                     };
                     controlsContainer.appendChild(btn);
-                }
-                if (key === 'cyborg' && enemy.animations) {
+                } else if (key === 'cyborg' && enemy.animations) {
                     model.scale.set(0.8,0.8,0.8); panSlider.value=1.2; model.userData.isPreview = true;
                     Object.keys(enemy.animations).filter(k=>!k.startsWith('_')).forEach(anim => {
                         const btn = document.createElement('button');
