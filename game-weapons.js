@@ -397,7 +397,7 @@ function updateBullets(delta) {
             for (let j = aliens.length - 1; j >= 0; j--) {
                 const a = aliens[j];
                 const enemyProps = GameData.enemies[a.userData.type].properties;
-                const hitRadius = b.userData.weaponType === 'Sniper Rifle' ? 2.5 : (a.userData.type === 'cyborg' ? 2.0 : (a.userData.type === 'stingray' ? 8.0 : (a.userData.type === 'shard_roller' ? 1.5 : 1.2)));
+                const hitRadius = b.userData.weaponType === 'Sniper Rifle' ? 2.5 : (a.userData.type === 'cyborg' ? 2.0 : (a.userData.type === 'stingray' ? 8.0 : (a.userData.type === 'shard_roller' ? 1.5 : (a.userData.type === 'dome_guardian' ? 8.0 : 1.2))));
                 if (a.userData.state === 'dying') continue;
                 if (b.position.distanceTo(a.position) < hitRadius) {
                     hit = true;
@@ -405,6 +405,8 @@ function updateBullets(delta) {
                     
                     if (a.userData.type === 'predator') {
                         createHitScatter(b.position, 0xff0000);
+                    } else if (a.userData.type === 'dome_guardian') {
+                        createHitScatter(b.position, 0xffff00); 
                     }
 
                     if (a.userData.health <= 0) {
@@ -412,6 +414,11 @@ function updateBullets(delta) {
                         
                         if (a.userData.type === 'shard_roller') {
                             spawnShardMites(a.position);
+                            scene.remove(a);
+                            aliens.splice(j, 1);
+                        } else if (a.userData.type === 'dome_guardian') {
+                            createAlienDebris(a.position, 0xffff00);
+                            for(let k=0; k<5; k++) createAlienDebris(a.position, 0xffff00); // More debris for effect
                             scene.remove(a);
                             aliens.splice(j, 1);
                         } else {
