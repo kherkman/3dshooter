@@ -4,8 +4,6 @@
  * Manages UI menu toggling logic.
  */
 
-const levelOrder = ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'];
-
 // --- TOUCH & GAMEPAD CONTROLS STATE ---
 const touchState = {}; // Keyed by touch identifier
 let gamepad = null;
@@ -290,20 +288,10 @@ function setupControls() {
             const state = touchState[touch.identifier];
             if (!state) continue;
 
-            if (state.zone === 'move') {
-                state.currentX = touch.clientX;
-                state.currentY = touch.clientY;
-                const dx = state.currentX - state.startX;
-                const dy = state.currentY - state.startY;
-                const deadZone = 20;
-
-                keys['KeyW'] = dy < -deadZone;
-                keys['KeyS'] = dy > deadZone;
-                keys['KeyA'] = dx < -deadZone;
-                keys['KeyD'] = dx > deadZone;
-            } else if (state.zone === 'look') {
-                state.currentX = touch.clientX;
-                state.currentY = touch.clientY;
+            state.currentX = touch.clientX;
+            state.currentY = touch.clientY;
+            
+            if (state.zone === 'look') {
                 const dx = state.currentX - state.startX;
                 const dy = state.currentY - state.startY;
                 const deadZone = 20;
@@ -322,10 +310,8 @@ function setupControls() {
         for (const touch of event.changedTouches) {
             const state = touchState[touch.identifier];
             if (!state) continue;
-
-            if (state.zone === 'move') {
-                keys['KeyW'] = false; keys['KeyS'] = false; keys['KeyA'] = false; keys['KeyD'] = false;
-            } else if (state.zone === 'look') {
+            
+            if (state.zone === 'look') {
                 keys['ArrowUp'] = false; keys['ArrowDown'] = false; keys['ArrowLeft'] = false; keys['ArrowRight'] = false;
             } else if (state.zone === 'action') {
                 keys['Space'] = false;
@@ -419,14 +405,12 @@ function setupControls() {
         toggleTouchButton.addEventListener('click', toggleTouchControlsEnabled);
     }
     
-    // --- MODIFICATION: Added Exit Vehicle Button Listener ---
     const exitVehicleButton = document.getElementById('exit-vehicle-button');
     exitVehicleButton.addEventListener('click', exitMotorcycle);
     exitVehicleButton.addEventListener('touchstart', (e) => {
         e.preventDefault();
         exitMotorcycle();
     });
-    // --- END MODIFICATION ---
 
     window.addEventListener('gamepadconnected', (event) => {
         console.log('Gamepad connected:', event.gamepad.id);
@@ -598,7 +582,7 @@ function changeWeapon(direction) {
 }
 
 function updatePlayer(delta) {
-    const isMovingByTouch = Object.keys(touchState).length > 0;
+    const isMovingByTouch = Object.values(touchState).some(s => s.zone === 'move');
     if (player.state !== 'on_foot' || isGameOver || (!controls.isLocked && !isMovingByTouch && !gamepad)) {
         player.velocity.x *= GameWorld.player.damping;
         player.velocity.z *= GameWorld.player.damping;
@@ -637,6 +621,28 @@ function updatePlayer(delta) {
     if (keys['KeyS']) moveVector.sub(forward);
     if (keys['KeyA']) moveVector.sub(right);
     if (keys['KeyD']) moveVector.add(right);
+
+    // --- MODIFICATION: Touchscreen movement with dynamic speed ---
+    for (const id in touchState) {
+        const state = touchState[id];
+        if (state.zone === 'move') {
+            const dx = state.currentX - state.startX;
+            const dy = state.currentY - state.startY;
+            const moveMagnitude = Math.sqrt(dx*dx + dy*dy);
+            const maxMoveDist = 80;
+
+            if (moveMagnitude > 10) {
+                const moveDir = new THREE.Vector2(dx, dy).normalize();
+                const speedFactor = Math.min(moveMagnitude / maxMoveDist, 1.0);
+                
+                const forwardComponent = forward.clone().multiplyScalar(-moveDir.y * speedFactor);
+                const rightComponent = right.clone().multiplyScalar(moveDir.x * speedFactor);
+                
+                moveVector.add(forwardComponent).add(rightComponent);
+            }
+        }
+    }
+    // --- END MODIFICATION ---
 
     const lookSpeed = 1.5; // Radians per second
     if (keys['ArrowLeft']) playerObject.rotation.y += lookSpeed * delta;
@@ -779,7 +785,6 @@ function updatePlayerVehicle(delta) {
     const bikeData = motorcycle.userData;
     const bikeProps = GameData.vehicles.motorcycle.properties;
 
-    // --- MODIFICATION: Added arrow key/touch camera controls for hoverbike ---
     const lookSpeed = 1.5; // Radians per second
     if (keys['ArrowLeft']) motorcycle.rotation.y += lookSpeed * delta;
     if (keys['ArrowRight']) motorcycle.rotation.y -= lookSpeed * delta;
@@ -791,7 +796,6 @@ function updatePlayerVehicle(delta) {
         camera.rotation.x -= lookSpeed * delta;
         camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
     }
-    // --- END MODIFICATION ---
 
     // Movement is based on W/S keys
     bikeData.velocity.multiplyScalar(bikeProps.damping);
@@ -1018,13 +1022,19 @@ function updateHyperspace(delta) {
     cockpitJoystick.rotation.x = 0.3 + Math.sin(clock.getElapsedTime() * 2) * 0.05;
 
     if (hyperspaceData.time >= hyperspaceData.duration) {
-        const currentIndex = levelOrder.indexOf(currentLevel);
-        const nextIndex = (currentIndex + 1) % levelOrder.length;
-        const nextLevel = levelOrder[nextIndex];
-        
-        player.state = 'landing_sequence';
-        hyperspaceData.time = 0;
-        loadLevel(nextLevel, false, true);
+        // --- Check if the quest is complete ---
+        if (currentLevel === 'crystal') {
+            questComplete();
+        } else {
+            const currentIndex = GameWorld.levelOrder.indexOf(currentLevel);
+            const nextIndex = (currentIndex + 1) % GameWorld.levelOrder.length;
+            const nextLevel = GameWorld.levelOrder[nextIndex];
+            
+            player.state = 'landing_sequence';
+            hyperspaceData.time = 0;
+            loadLevel(nextLevel, false, true);
+        }
+
     }
 }
 
