@@ -379,8 +379,109 @@ GameData.enemies = {
                 mouth.rotation.x = -Math.PI / 1.5 + Math.sin(time * 50) * 0.2; // Rapid chattering
             }
         }
+    },
+    dome_guardian: {
+        name: 'Dome Guardian',
+        description: 'A stationary crystal turret that scans for targets and fires a powerful lightning bolt.',
+        levels: ['crystal'],
+        spawnWeight: 0.1,
+        properties: { health: 20, score: 150, spawnY: 4, sightRange: 80, attackRange: 70, attackCooldown: 4.0, attackDamage: 50 },
+        model: () => {
+            const group = new THREE.Group();
+            const crystalMat = new THREE.MeshStandardMaterial({
+                color: 0xaa88ff, roughness: 0.1, metalness: 0.5, flatShading: false,
+                emissive: 0x8844cc, emissiveIntensity: 0.5, transparent: true, opacity: 0.85
+            });
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 1.0 });
+
+            const dome = new THREE.Mesh(new THREE.SphereGeometry(4, 32, 24), crystalMat);
+            group.add(dome);
+            
+            const eyePivot = new THREE.Group();
+            group.add(eyePivot);
+
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 16), eyeMat);
+            eye.position.z = 3.8;
+            eyePivot.add(eye);
+
+            group.userData.eyePivot = eyePivot;
+            group.userData.eye = eye;
+            group.userData.eyeMaterial = eyeMat;
+
+            return group;
+        },
+        animations: {
+            idle: (alien, time) => {
+                const initialY = GameData.enemies.dome_guardian.properties.spawnY;
+                alien.position.y = initialY + Math.sin(time * 0.5) * 0.2;
+                alien.rotation.y += 0.001;
+            },
+            scan: (alien, time, player, distance, playerDir, delta) => {
+                const { eyePivot, eye, eyeMaterial } = alien.userData;
+                const props = GameData.enemies.dome_guardian.properties;
+                let shouldFire = false;
+    
+                if (!alien.userData.state) alien.userData.state = 'scanning';
+    
+                switch (alien.userData.state) {
+                    case 'scanning':
+                        eyePivot.rotation.y = Math.sin(time * 0.4) * Math.PI * 0.4;
+                        eyePivot.rotation.x = Math.sin(time * 0.25) * Math.PI * 0.2;
+                        
+                        if (distance < props.sightRange) {
+                           const forward = new THREE.Vector3(0, 0, 1);
+                           forward.applyQuaternion(eye.getWorldQuaternion(new THREE.Quaternion()));
+                           if (forward.dot(playerDir) > 0.95) { 
+                               alien.userData.state = 'locked';
+                               alien.userData.lockTimer = 1.0;
+                           }
+                        }
+                        break;
+    
+                    case 'locked':
+                        const targetWorldPos = player.position.clone().add(new THREE.Vector3(0, GameWorld.player.height / 2, 0));
+                        const targetLocalPos = alien.worldToLocal(targetWorldPos);
+                        
+                        const tempMatrix = new THREE.Matrix4();
+                        tempMatrix.lookAt(targetLocalPos, new THREE.Vector3(0,0,0), alien.up);
+                        const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(tempMatrix);
+                        
+                        eyePivot.quaternion.slerp(targetQuaternion, 0.1);
+    
+                        eyeMaterial.emissiveIntensity = 3 + Math.sin(time * 30) * 2.5;
+    
+                        alien.userData.lockTimer -= delta;
+                        if (alien.userData.lockTimer <= 0) {
+                            if (distance < props.attackRange) {
+                                alien.userData.state = 'firing';
+                                shouldFire = true;
+                            } else {
+                                alien.userData.state = 'scanning';
+                            }
+                        }
+                        break;
+    
+                    case 'firing':
+                        eyeMaterial.emissiveIntensity = 8.0;
+                        alien.userData.state = 'cooldown';
+                        alien.userData.cooldownTimer = 0.5;
+                        break;
+    
+                    case 'cooldown':
+                        alien.userData.cooldownTimer -= delta;
+                        eyeMaterial.emissiveIntensity = THREE.MathUtils.lerp(eyeMaterial.emissiveIntensity, 1.0, 0.1);
+                        if (alien.userData.cooldownTimer <= 0) {
+                            alien.userData.state = 'scanning';
+                        }
+                        break;
+                }
+                return shouldFire;
+            }
+        }
     }
 };
+
+let fuzzyEffectActive = false;
 
 function spawnShardMites(position) {
     const count = 5; 
@@ -458,6 +559,12 @@ function spawnAliens(count, isInitialSpawn = false) {
         const spawnY = typeof selectedEnemy.data.properties.spawnY === 'function' ? selectedEnemy.data.properties.spawnY() : selectedEnemy.data.properties.spawnY;
         
         if (spawnSafe(alien, spawnY)) {
+            if (selectedEnemy.type === 'dome_guardian') {
+                const colliderBox = new THREE.Box3().setFromObject(alien);
+                buildingColliders.push(colliderBox);
+                alien.userData.colliderBox = colliderBox;
+            }
+            
             alien.castShadow = true;
             alien.userData.type = selectedEnemy.type;
             alien.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 4, 0, (Math.random() - 0.5) * 4);
@@ -551,13 +658,13 @@ function updateAliens(delta) {
         const data = alien.userData;
         const enemyDef = GameData.enemies[data.type];
         const enemyProps = enemyDef.properties;
-        const distanceToPlayer = alien.position.distanceTo(playerTarget.position);
         
         if(data.attackCooldown > 0) data.attackCooldown -= delta;
         if(data.hitCooldown > 0) data.hitCooldown -= delta;
 
         for (let j = i - 1; j >= 0; j--) {
             const otherAlien = aliens[j];
+            if (otherAlien.userData.type === 'dome_guardian' || data.type === 'dome_guardian') continue;
             const dist = alien.position.distanceTo(otherAlien.position);
             const requiredDist = 2.0; 
             if (dist < requiredDist) {
@@ -570,14 +677,36 @@ function updateAliens(delta) {
         
         if (player.carriedObject && player.carriedObject.userData.key === 'glowing_orb') {
             data.state = 'idle'; 
-            data.velocity.multiplyScalar(0.95); 
-            const deltaPos = data.velocity.clone().multiplyScalar(delta);
-            handleEnemyCollision(alien, deltaPos); 
+            if (data.velocity) data.velocity.multiplyScalar(0.95);
+            if (data.type !== 'dome_guardian') {
+                const deltaPos = data.velocity.clone().multiplyScalar(delta);
+                handleEnemyCollision(alien, deltaPos); 
+            }
             continue; 
         }
 
         switch(data.type) {
-            case 'predator':
+            case 'dome_guardian': {
+                enemyDef.animations.idle(alien, clock.getElapsedTime());
+
+                const playerCenterPos = playerTarget.position.clone().add(new THREE.Vector3(0, GameWorld.player.height / 2, 0));
+                const playerDirection = new THREE.Vector3().subVectors(playerCenterPos, alien.position);
+                const distanceToPlayer = playerDirection.length();
+                playerDirection.normalize();
+                
+                const shouldFire = enemyDef.animations.scan(alien, clock.getElapsedTime(), playerTarget, distanceToPlayer, playerDirection, delta);
+            
+                if (shouldFire && data.attackCooldown <= 0) {
+                    data.attackCooldown = enemyProps.attackCooldown;
+                    const eyePosition = new THREE.Vector3();
+                    alien.userData.eye.getWorldPosition(eyePosition);
+            
+                    createLightningBolt(eyePosition, playerCenterPos, enemyProps.attackDamage);
+                }
+                continue;
+            }
+            case 'predator': {
+                const distanceToPlayer = alien.position.distanceTo(playerTarget.position);
                 alien.lookAt(playerTarget.position);
                 if (distanceToPlayer < enemyProps.sightRange) {
                     data.state = 'stalking';
@@ -605,8 +734,10 @@ function updateAliens(delta) {
                     data.velocity.multiplyScalar(0.95);
                 }
                 break;
+            }
             case 'shard_roller':
-            case 'shard_mite':
+            case 'shard_mite': {
+                const distanceToPlayer = alien.position.distanceTo(playerTarget.position);
                 if (distanceToPlayer < 40) {
                     const dir = new THREE.Vector3().subVectors(playerTarget.position, alien.position).normalize();
                     data.velocity.lerp(dir.multiplyScalar(enemyProps.speed), 0.05);
@@ -629,7 +760,9 @@ function updateAliens(delta) {
 
                 enemyDef.animations.roll(alien, delta);
                 break;
-            case 'worm_swarm':
+            }
+            case 'worm_swarm': {
+                const distanceToPlayer = alien.position.distanceTo(playerTarget.position);
                 enemyDef.animations.swirl(alien, clock.getElapsedTime());
                 alien.lookAt(playerTarget.position.x, alien.position.y, playerTarget.position.z);
                 if (distanceToPlayer < enemyProps.attackRange && data.attackCooldown <= 0) {
@@ -643,7 +776,9 @@ function updateAliens(delta) {
                     data.velocity.lerp(dir.multiplyScalar(enemyProps.speed), 0.1);
                 }
                 break;
-            case 'tentacle':
+            }
+            case 'tentacle': {
+                const distanceToPlayer = alien.position.distanceTo(playerTarget.position);
                 const targetY = 0;
                 switch (data.state) {
                     case 'idle':
@@ -701,7 +836,9 @@ function updateAliens(delta) {
                         break;
                 }
                 continue;
-            case 'stingray':
+            }
+            case 'stingray': {
+                const distanceToPlayer = alien.position.distanceTo(playerTarget.position);
                 const hoverPointStingray = playerTarget.position.clone().add(new THREE.Vector3(Math.sin(clock.getElapsedTime()*0.2)*100, 0, Math.cos(clock.getElapsedTime()*0.2)*100));
                 data.spawnY = data.spawnY || enemyProps.spawnY();
                 hoverPointStingray.y = data.spawnY;
@@ -717,10 +854,14 @@ function updateAliens(delta) {
                     scene.add(bomb);
                 }
                 break;
-            case 'cyborg':
+            }
+            case 'cyborg': {
+                const distanceToPlayer = alien.position.distanceTo(playerTarget.position);
                 if (data.state === 'dying') { data.animationProgress += delta * 0.7; enemyDef.animations.death(alien, data.animationProgress); if (data.animationProgress >= 1) { scene.remove(alien); aliens.splice(i, 1); score += enemyProps.score; } continue; } alien.lookAt(playerTarget.position.x, alien.position.y, playerTarget.position.z); if (distanceToPlayer < enemyProps.attackRange && data.attackCooldown <= 0 && data.state !== 'shooting') { data.state = 'shooting'; data.animationProgress = 0; data.hasFiredInThisShot = false; data.attackCooldown = typeof enemyProps.attackCooldown === 'function' ? enemyProps.attackCooldown() : enemyProps.attackCooldown; } else if (data.state !== 'shooting') { if (distanceToPlayer > enemyProps.sightRange) data.state = 'idle'; else data.state = 'chasing'; } switch(data.state) { case 'idle': enemyDef.animations.idle(alien); break; case 'chasing': enemyDef.animations.walk(alien, clock.getElapsedTime()); const dir = new THREE.Vector3().subVectors(playerTarget.position, alien.position).normalize(); data.velocity.lerp(dir.multiplyScalar(2), 0.1); break; case 'shooting': const didFire = enemyDef.animations.shoot(alien, data.animationProgress); if (didFire) { const startPos = new THREE.Vector3(); alien.userData.rifleBarrel.getWorldPosition(startPos); const fireDir = new THREE.Vector3().subVectors(playerTarget.position, startPos).normalize(); const proj = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 3})); proj.position.copy(startPos); proj.userData.velocity = fireDir.multiplyScalar(enemyProps.projectileSpeed); cyborgProjectiles.push(proj); scene.add(proj); playSound('cyborg_shoot'); } data.animationProgress += delta * 2.0; if (data.animationProgress >= 1) data.state = 'chasing'; break; }
                 break;
-            case 'ground':
+            }
+            case 'ground': {
+                const distanceToPlayer = alien.position.distanceTo(playerTarget.position);
                 const enemyDefAnims = GameData.enemies.ground.animations;
                 const onGround = alien.position.y <= enemyProps.spawnY + 0.01;
                 switch (data.state) {
@@ -731,7 +872,9 @@ function updateAliens(delta) {
                 }
                 data.velocity.y -= GRAVITY * delta;
                 break;
-            case 'flyer':
+            }
+            case 'flyer': {
+                const distanceToPlayer = alien.position.distanceTo(playerTarget.position);
                 switch(data.state) {
                     case 'idle': 
                         if (distanceToPlayer < enemyProps.sightRange) {
@@ -764,16 +907,19 @@ function updateAliens(delta) {
                 }
                 alien.lookAt(alien.position.clone().add(data.velocity));
                 break;
+            }
         }
 
-        const deltaPos = data.velocity.clone().multiplyScalar(delta);
-        handleEnemyCollision(alien, deltaPos);
-        
-        if((data.type === 'ground' || data.type === 'worm_swarm' || data.type === 'shard_roller' || data.type === 'shard_mite' || data.type === 'predator') && alien.position.y < enemyProps.spawnY) {
-            alien.position.y = enemyProps.spawnY;
-             if (data.state !== 'leaping') {
-                 data.velocity.y = 0;
-             }
+        if (data.type !== 'dome_guardian') {
+            const deltaPos = data.velocity.clone().multiplyScalar(delta);
+            handleEnemyCollision(alien, deltaPos);
+            
+            if((data.type === 'ground' || data.type === 'worm_swarm' || data.type === 'shard_roller' || data.type === 'shard_mite' || data.type === 'predator') && alien.position.y < enemyProps.spawnY) {
+                alien.position.y = enemyProps.spawnY;
+                 if (data.state !== 'leaping') {
+                     data.velocity.y = 0;
+                 }
+            }
         }
     }
 }
@@ -816,7 +962,7 @@ function updateCyborgProjectiles(delta) {
         if (p.position.distanceTo(targetPos) < hitRadius) {
             health = Math.max(0, health - 15);
             lastAttackerPosition = p.position.clone();
-            playSound('player_damage'); damageFlashElement.style.opacity = 0.5;
+            playSound('player_damage');
             scene.remove(p); cyborgProjectiles.splice(i, 1);
         } else if (p.position.y < -10) {
             scene.remove(p); cyborgProjectiles.splice(i, 1);
@@ -867,7 +1013,24 @@ function updateShardProjectiles(delta) {
             lastAttackerPosition = p.position.clone();
             playSound('player_damage');
             createHitScatter(p.position, 0xeeccff);
-            scene.remove(p); shardProjectiles.splice(i, 1);
+
+            if (damageFlashElement) {
+                damageFlashElement.style.opacity = 0.5;
+                setTimeout(() => { damageFlashElement.style.opacity = 0; }, 120);
+            }
+
+            if (fuzzyVisionOverlay && !fuzzyEffectActive) {
+                fuzzyEffectActive = true;
+                fuzzyVisionOverlay.classList.add('effect-active');
+                
+                setTimeout(() => {
+                    fuzzyVisionOverlay.classList.remove('effect-active');
+                    fuzzyEffectActive = false;
+                }, 1000);
+            }
+
+            scene.remove(p);
+            shardProjectiles.splice(i, 1);
         } else if (p.position.y < -10) {
             scene.remove(p); shardProjectiles.splice(i, 1);
         }
