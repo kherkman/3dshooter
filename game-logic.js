@@ -231,6 +231,43 @@ function createExplosion(position, radius) {
     animateExplosion();
 }
 
+/**
+ * Creates a visual and damaging lightning bolt effect between two points.
+ * @param {THREE.Vector3} startPos The starting position of the bolt.
+ * @param {THREE.Vector3} endPos The ending position of the bolt.
+ * @param {number} damage The amount of damage to inflict if the player is hit.
+ */
+function createLightningBolt(startPos, endPos, damage) {
+    const distance = startPos.distanceTo(endPos);
+    const direction = new THREE.Vector3().subVectors(endPos, startPos).normalize();
+
+    const lightningBolt = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2, 0.2, distance, 8),
+        new THREE.MeshBasicMaterial({ color: 0xffff88, transparent: true, opacity: 0.9 })
+    );
+
+    lightningBolt.position.copy(startPos).lerp(endPos, 0.5);
+    lightningBolt.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+    scene.add(lightningBolt);
+
+    const pointLight = new THREE.PointLight(0xffff88, 5, 100);
+    pointLight.position.copy(endPos);
+    scene.add(pointLight);
+
+    const playerHeadPos = playerObject.position.clone().add(new THREE.Vector3(0, GameWorld.player.height / 2, 0));
+    if (playerHeadPos.distanceTo(endPos) < 5 && damage > 0) {
+        health = Math.max(0, health - damage);
+        playSound('player_damage');
+        lastAttackerPosition = endPos.clone();
+    }
+
+    setTimeout(() => {
+        scene.remove(lightningBolt);
+        scene.remove(pointLight);
+    }, 150);
+}
+
+
 function updateCollectibles(delta) {
     let collector = null;
     let collectorRadius = 1.5;
