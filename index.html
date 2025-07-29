@@ -7,12 +7,21 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- MODIFICATION: Container for level start notifications -->
+    <div id="level-notification-container"></div>
+    <!-- END MODIFICATION -->
+
     <div id="blocker" class="overlay">
         <div id="instructions" class="menu-box">
             <h1 class="menu-header">
                 <span>Robot Attack 3D FPS</span>
                 <button id="close-intro" class="header-close-button">&times;</button>
             </h1>
+
+            <!-- MODIFICATION: Canvas for level progression in the intro -->
+            <canvas id="level-progression-intro" width="400" height="50" style="margin-top: 15px; margin-bottom: 15px; background: rgba(0,0,0,0.2); border: 1px solid #ffaa00;"></canvas>
+            <!-- END MODIFICATION -->
+            
             <p>The enemy robots have attacked your city. Find a spacecraft and get away!</p>
             
             <div class="controls-list-intro">
@@ -133,6 +142,10 @@
                     <div id="inventory-items-list"></div>
                 </div>
                 <div class="inventory-section" id="inventory-map-section">
+                    <!-- MODIFICATION: Canvas for level progression in inventory -->
+                    <h2>MISSION PROGRESS</h2>
+                    <canvas id="level-progression-inventory" width="400" height="50" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); border: 1px solid #ffaa00;"></canvas>
+                    <!-- END MODIFICATION -->
                     <h2>SECTOR MAP</h2>
                     <canvas id="inventory-map-canvas" width="400" height="400"></canvas>
                 </div>
@@ -154,7 +167,7 @@
                     <div id="preview-controls"></div>
                     <div id="preview-description"></div>
                     <div id="preview-slider-container">
-                        <div><label for="preview-zoom-slider">Zoom</label><br><input type="range" id="preview-zoom-slider" class="preview-slider" min="0.5" max="10" step="0.1" value="3"></div>
+                        <div><label for="preview-zoom-slider">Zoom</label><br><input type="range" id="preview-zoom-slider" class="preview-slider" min="0.5" max="15" step="0.1" value="3"></div>
                         <div><label for="preview-pan-slider">Pan Vertical</label><br><input type="range" id="preview-pan-slider" class="preview-slider" min="-1.5" max="2.5" step="0.1" value="0.5"></div>
                     </div>
                 </div>
@@ -166,6 +179,7 @@
     
     <div id="item-pickup-notification"></div>
     <div id="retro-overlay"></div>
+    <div id="fuzzy-vision-overlay"></div>
     <div id="damage-flash"></div>
     <div id="map-container"><canvas id="map-canvas" width="500" height="500"></canvas></div>
     <div id="interaction-prompt"></div>
