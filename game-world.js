@@ -1,4 +1,8 @@
 const GameWorld = {
+
+    levelOrder: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
+
+
     player: {
         height: 1.8,
         speed: 80.0,
@@ -191,10 +195,18 @@ const GameWorld = {
                     buildingColliders.push(box);
                 }
                 const ruinMat = new THREE.MeshStandardMaterial({color:0x778899, roughness:0.8});
+                const castleCenter = new THREE.Vector3(100,0,100);
+                const castleRadiusSq = 25 * 25; 
                 for(let i=0; i<30; i++) { 
                     const size = Math.random()*5+2; const h = Math.random()*8+1; 
                     const ruin = new THREE.Mesh(new THREE.BoxGeometry(size,h,size), ruinMat); 
                     ruin.position.set((Math.random()-0.5)*380, h/2, (Math.random()-0.5)*380); 
+                    
+                    if (ruin.position.distanceToSquared(castleCenter) < castleRadiusSq) {
+                        i--; 
+                        continue;
+                    }
+
                     ruin.rotation.y = Math.random()*Math.PI; 
                     scene.add(ruin); 
                     const box = new THREE.Box3().setFromObject(ruin);
@@ -214,11 +226,39 @@ const GameWorld = {
                         box.expandByVector(size.multiplyScalar(-0.1));
                         buildingColliders.push(box); 
                     };
-                    createWall(40, wallThick, pos.clone().add(new THREE.Vector3(0,wallHeight/2,20)), 0); 
+                    const backWallPos = pos.clone().add(new THREE.Vector3(0,wallHeight/2,20));
+                    createWall(40, wallThick, backWallPos, 0); 
                     createWall(15, wallThick, pos.clone().add(new THREE.Vector3(12.5,wallHeight/2,-20)), 0); 
                     createWall(15, wallThick, pos.clone().add(new THREE.Vector3(-12.5,wallHeight/2,-20)), 0); 
                     createWall(40, wallThick, pos.clone().add(new THREE.Vector3(20,wallHeight/2,0)), Math.PI/2); 
                     createWall(40, wallThick, pos.clone().add(new THREE.Vector3(-20,wallHeight/2,0)), Math.PI/2);
+                    
+                    // --- MODIFICATION: Replace ladders with stairs
+                    const stairsMat = new THREE.MeshStandardMaterial({color:0x48494B, roughness:0.7});
+                    const stairWidth = 4;
+                    const stairCount = 15;
+                    const totalStairDepth = 10;
+                    const stepHeight = wallHeight / stairCount;
+                    const stepDepth = totalStairDepth / stairCount;
+
+                    // Start the staircase `totalStairDepth` away from the wall's front face.
+                    const stairCaseStartZ = backWallPos.z - (wallThick / 2) - totalStairDepth;
+
+                    for (let i = 0; i < stairCount; i++) {
+                        const stepGeo = new THREE.BoxGeometry(stairWidth, stepHeight, stepDepth);
+                        const step = new THREE.Mesh(stepGeo, stairsMat);
+                        step.position.set(
+                            backWallPos.x,
+                            (i * stepHeight) + (stepHeight / 2) + 0.25, // Start from patio height
+                            stairCaseStartZ + (i * stepDepth) + (stepDepth / 2) // Build stairs towards the wall
+                        );
+                        step.castShadow = true;
+                        step.receiveShadow = true;
+                        scene.add(step);
+                        buildingColliders.push(new THREE.Box3().setFromObject(step));
+                    }
+                    // --- END MODIFICATION ---
+
                     const patio = new THREE.Mesh(new THREE.BoxGeometry(38,0.5,38), wallMat); 
                     patio.position.copy(pos).add(new THREE.Vector3(0,0.25,0)); 
                     scene.add(patio); 
@@ -247,7 +287,7 @@ const GameWorld = {
                     })});
                     return designatedTowerTopPos;
                 }
-                const castleTowerTopPosition = createCastle(new THREE.Vector3(100,0,100));
+                const castleTowerTopPosition = createCastle(castleCenter);
                 
                 const wallMat = new THREE.MeshStandardMaterial({color:0xccffff, transparent: true, opacity:0.3, roughness:0.1});
                 const wallHeight = 50; const mapSize = 400; const wallThickness = 5;
@@ -387,6 +427,25 @@ const GameWorld = {
                 directionalLight.shadow.camera.top = 150;
                 directionalLight.shadow.camera.bottom = -150;
                 scene.add(directionalLight);
+
+                const sunMatWhite = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false });
+                const sunWhite = new THREE.Mesh(new THREE.SphereGeometry(20, 32, 16), sunMatWhite);
+                sunWhite.position.set(-300, 200, -300);
+                scene.add(sunWhite);
+
+                const sunMatRed = new THREE.MeshBasicMaterial({ color: 0xff4422, fog: false });
+                const sunRed = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), sunMatRed);
+                sunRed.position.set(300, 250, -250);
+                scene.add(sunRed);
+
+                const sunLightWhite = new THREE.PointLight(0xffffff, 0.5, 2000);
+                sunLightWhite.position.copy(sunWhite.position);
+                scene.add(sunLightWhite);
+
+                const sunLightRed = new THREE.PointLight(0xff4422, 0.5, 2000);
+                sunLightRed.position.copy(sunRed.position);
+                scene.add(sunLightRed);
+
                 const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({
                     color: 0x221133,
                     roughness: 0.3
@@ -394,6 +453,12 @@ const GameWorld = {
                 ground.rotation.x = -Math.PI / 2;
                 ground.receiveShadow = true;
                 scene.add(ground);
+
+                const mazeCenterPos = new THREE.Vector3(-100, 0, -100);
+                const mazeGridSize = 25; 
+                const cellSize = 8;
+                const mazeRadius = (mazeGridSize / 2) * cellSize;
+                
                 const crystalGeo = new THREE.OctahedronGeometry(1);
                 const crystalMat = new THREE.MeshStandardMaterial({
                     color: 0xaa88ff,
@@ -409,6 +474,15 @@ const GameWorld = {
                     const crystal = new THREE.Mesh(crystalGeo, crystalMat);
                     crystal.scale.setScalar(Math.random() * 12 + 3);
                     crystal.position.set((Math.random() - 0.5) * 380, (crystal.scale.y / 2) - Math.random() * 2, (Math.random() - 0.5) * 380);
+                    
+                    // --- MODIFICATION: Prevent decorative crystals from spawning in the maze ---
+                    const distFromMazeCenter = new THREE.Vector2(crystal.position.x, crystal.position.z).distanceTo(new THREE.Vector2(mazeCenterPos.x, mazeCenterPos.z));
+                    if (distFromMazeCenter < mazeRadius) {
+                        i--; // try again
+                        continue;
+                    }
+                    // --- END MODIFICATION ---
+
                     crystal.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
                     crystal.castShadow = true;
                     crystal.receiveShadow = true;
@@ -428,6 +502,13 @@ const GameWorld = {
                     const sSize = Math.random() * 4 + 2;
                     const server = new THREE.Mesh(new THREE.BoxGeometry(sSize, sSize * 2, sSize), serverMat);
                     server.position.set((Math.random() - 0.5) * 380, sSize, (Math.random() - 0.5) * 380);
+                    
+                    const distFromMazeCenter = new THREE.Vector2(server.position.x, server.position.z).distanceTo(new THREE.Vector2(mazeCenterPos.x, mazeCenterPos.z));
+                    if (distFromMazeCenter < mazeRadius) {
+                        i--; 
+                        continue;
+                    }
+
                     scene.add(server);
                     const box = new THREE.Box3().setFromObject(server);
                     const size = new THREE.Vector3();
@@ -436,11 +517,8 @@ const GameWorld = {
                     buildingColliders.push(box);
                 }
                 
-                const mazeGridSize = 25; 
-                const cellSize = 8;
                 const wallHeight = 6;
                 const wallThickness = 1.0;
-                const mazeCenterPos = new THREE.Vector3(-100, 0, -100);
                 const mazeMat = new THREE.MeshStandardMaterial({ color: 0x332255, roughness: 0.6, metalness: 0.2, emissive: 0x221133, emissiveIntensity: 0.4 });
                 
                 const generateMaze = (size) => {
@@ -553,7 +631,8 @@ const GameWorld = {
                     hemisphereLight,
                     directionalLight,
                     landingPadPosition: new THREE.Vector3(0, 1.0, 0),
-                    mazeCenter: mazeCenterPos
+                    mazeCenter: mazeCenterPos,
+                    domeGuardianPosition: new THREE.Vector3(100, 0, 100)
                 };
             },
             map: {
@@ -569,7 +648,7 @@ const GameWorld = {
             const ship = new THREE.Group(); const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x777788, metalness: 0.8, roughness: 0.4 }); const wingMaterial = new THREE.MeshStandardMaterial({ color: 0xbb4433, metalness: 0.7, roughness: 0.5 }); const cockpitMaterial = new THREE.MeshStandardMaterial({ color: 0x00aaff, metalness: 0.2, roughness: 0.1, transparent: true, opacity: 0.4 }); const engineGlowMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff }); const gunMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9, roughness: 0.6 }); const bodyGeometry = new THREE.IcosahedronGeometry(4, 1); const mainBody = new THREE.Mesh(bodyGeometry, bodyMaterial); mainBody.scale.set(1, 0.4, 2.5); mainBody.castShadow = true; ship.add(mainBody); const cockpitGeometry = new THREE.SphereGeometry(1.5, 32, 16); const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial); cockpit.position.set(0, 0.7, 3.5); cockpit.scale.set(1, 0.7, 1.2); ship.add(cockpit); const wingShape = new THREE.Shape(); wingShape.moveTo(0, 0); wingShape.lineTo(6, 1.5); wingShape.lineTo(7, -1.5); wingShape.lineTo(0, -1); wingShape.lineTo(0, 0); const extrudeSettings = { depth: 0.2, bevelEnabled: false }; const wingGeometry = new THREE.ExtrudeGeometry(wingShape, extrudeSettings); const rightWing = new THREE.Mesh(wingGeometry, wingMaterial); rightWing.position.set(1.5, 0, -1); rightWing.castShadow = true; ship.add(rightWing); const leftWing = rightWing.clone(); leftWing.scale.x = -1; leftWing.position.x = -1.5; ship.add(leftWing); const engineGroup = new THREE.Group(); const engineBodyGeom = new THREE.CylinderGeometry(1, 1.2, 3, 16); const engineBody = new THREE.Mesh(engineBodyGeom, bodyMaterial); engineBody.castShadow = true; const engineGlowGeom = new THREE.CylinderGeometry(0.8, 0.8, 0.1, 16); const engineGlow = new THREE.Mesh(engineGlowGeom, engineGlowMaterial); engineGlow.position.y = -1.5; engineBody.add(engineGlow); const rightEngine = engineBody.clone(); rightEngine.position.set(2.5, 0, -5); ship.add(rightEngine); const leftEngine = engineBody.clone(); leftEngine.position.set(-2.5, 0, -5); ship.add(leftEngine); const createMachineGun = () => { const gun = new THREE.Group(); const barrelGeom = new THREE.CylinderGeometry(0.1, 0.1, 2.5, 8); const barrel = new THREE.Mesh(barrelGeom, gunMaterial); barrel.rotation.x = Math.PI / 2; barrel.position.z = 1.25; const bodyGeom = new THREE.BoxGeometry(0.5, 0.4, 1); const body = new THREE.Mesh(bodyGeom, gunMaterial); gun.add(barrel, body); return gun; }; const rightGun = createMachineGun(); rightGun.position.set(3.5, -0.5, 1.5); ship.add(rightGun); const leftGun = createMachineGun(); leftGun.position.set(-3.5, -0.5, 1.5); ship.add(leftGun); ship.userData.guns = [rightGun, leftGun]; return ship;
         },
         createJoystickModel: () => {
-            const joystick = new THREE.Group(); joystick.scale.setScalar(1.0); const mat = new THREE.MeshStandardMaterial({color: 0x282828, roughness: 0.3, metalness: 0.9}); const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.1, 16), mat); joystick.add(base); const stickMat = new THREE.MeshStandardMaterial({color: 0x555555, roughness: 0.2, metalness: 1.0}); const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8), stickMat); stick.position.y = 0.25; joystick.add(stick); const handleMat = new THREE.MeshStandardMaterial({color: 0xdd2222, roughness: 0.4, metalness: 0.5}); const handle = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), handleMat); handle.position.y = 0.25; stick.add(handle); joystick.position.set(0, -0.9, -0.7); joystick.rotation.x = 0.3; joystick.visible = false; joystick.renderOrder = 999; joystick.traverse(child => { if (child.isMesh) { child.material.depthTest = false; child.material.depthWrite = false; } }); return joystick;
+            const joystick = new THREE.Group(); joystick.scale.setScalar(1.0); const mat = new THREE.MeshStandardMaterial({color: 0x282828, roughness: 0.3, metalness: 0.9}); const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.1, 16), mat); joystick.add(base); const stickMat = new THREE.MeshStandardMaterial({color: 0x555555, roughness: 0.2, metalness: 1.0}); const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8), stickMat); stick.position.y = 0.25; joystick.add(stick); const handleMat = new THREE.MeshStandardMaterial({color: 0x282828, roughness: 0.4, metalness: 0.5}); const handle = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), handleMat); handle.position.y = 0.25; stick.add(handle); joystick.position.set(0, -0.7, -0.7); joystick.rotation.x = 0.3; joystick.visible = false; joystick.renderOrder = 999; joystick.traverse(child => { if (child.isMesh) { child.material.depthTest = false; child.material.depthWrite = false; } }); return joystick;
         },
         createCockpitHUDModel: () => {
             const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 256; const ctx = canvas.getContext('2d'); const hexRadius = 30; const hexHeight = Math.sqrt(3) * hexRadius; const hexWidth = 2 * hexRadius; ctx.strokeStyle = 'rgba(0, 180, 255, 1.0)'; ctx.lineWidth = 3; for (let row = -1; row < canvas.height / hexHeight + 1; row++) { for (let col = -1; col < canvas.width / (hexWidth * 0.75) + 1; col++) { let x = col * hexWidth * 0.75; let y = row * hexHeight; if (col % 2 !== 0) { y += hexHeight / 2; } ctx.beginPath(); for (let i = 0; i < 6; i++) { const angle_deg = 60 * i - 30; const angle_rad = Math.PI / 180 * angle_deg; ctx.lineTo(x + hexRadius * Math.cos(angle_rad), y + hexRadius * Math.sin(angle_rad)); } ctx.closePath(); ctx.stroke(); } } const texture = new THREE.CanvasTexture(canvas); texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(2, 1);
