@@ -6,7 +6,7 @@
 
 // --- GLOBAL SETUP ---
 let scene, camera, renderer, controls, audioListener, stereoCamera;
-let playerObject, damageFlashElement, mapCanvas, mapCtx, mapBackgroundCanvas, attackIndicatorContainer;
+let playerObject, damageFlashElement, mapCanvas, mapCtx, mapBackgroundCanvas, attackIndicatorContainer, fuzzyVisionOverlay;
 let levelObjects = {}; // To hold ground, lights etc. for easy removal
 const clock = new THREE.Clock();
 
@@ -32,7 +32,7 @@ let xrayMaterials = {};
 
 let initialInstructionsHTML = '';
 const gunBasePosition = new THREE.Vector3(0.5, -0.4, -1);
-let score = 0, health = 500, isGameOver = false, lastHealth = 500, isPaused = false;
+let score = 0, health = 500, isGameOver = false, isGameWon = false, lastHealth = 500, isPaused = false;
 let lastAttackerPosition = null;
 let attackIndicatorTimeout = null;
 let hyperspaceData = { time: 0, duration: 5.0, fadeTime: 1.5 };
@@ -74,6 +74,7 @@ function init() {
 
     attackIndicatorContainer = document.getElementById('attack-indicator-container');
     damageFlashElement = document.getElementById('damage-flash');
+    fuzzyVisionOverlay = document.getElementById('fuzzy-vision-overlay');
     mapCanvas = document.getElementById('map-canvas');
     mapCtx = mapCanvas.getContext('2d');
     interactionPromptElement = document.getElementById('interaction-prompt');
@@ -188,6 +189,19 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     
     const levelData = GameWorld.levels[levelName].create(scene, buildingColliders, vegetation, bunkers);
     levelObjects = { ...levelData };
+
+    // --- MODIFICATION: Level start notification ---
+    const levelIndex = GameWorld.levelOrder.indexOf(levelName);
+    const levelDisplayName = GameWorld.levels[levelName].name;
+    const notificationContainer = document.getElementById('level-notification-container');
+    if (notificationContainer) {
+        notificationContainer.innerHTML = `Level ${levelIndex + 1}/6: ${levelDisplayName}`;
+        notificationContainer.classList.add('show');
+        setTimeout(() => {
+            notificationContainer.classList.remove('show');
+        }, 5000); // Display for 5 seconds
+    }
+    // --- END MODIFICATION ---
     
     if (levelName === 'city') {
         playerObject.position.set(0, 0, 10);
@@ -229,6 +243,7 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     if (isInitialLoad) {
         health = 500;
         score = 0;
+        isGameWon = false; // Reset the win state on a true restart.
     }
     lastHealth = health;
     
@@ -246,6 +261,9 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     spawnInitialCollectibles();
     if (spacecraftPosition) spawnSpacecraft(spacecraftPosition, isLanding);
     if (levelData.motorcyclePosition) spawnMotorcycle(levelData.motorcyclePosition);
+    if (levelData.domeGuardianPosition) {
+        // The spawnAliens function will handle placing this correctly now
+    }
 
     if (levelName === 'toxic') { toxicStorm = { active: false, timer: 30 + Math.random() * 30 }; } else { toxicStorm.active = false; }
     if (levelName === 'volcanic') { lightningTimer = 3 + Math.random() * 4; }
@@ -268,7 +286,10 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
 
 
 function restartGame() {
-    loadLevel(currentLevel, true);
+    // If the game was won, loop back to the start.
+    // Otherwise, just restart the current level.
+    const levelToLoad = isGameWon ? 'city' : currentLevel;
+    loadLevel(levelToLoad, true);
 }
 
 function gameOver(message = "COMPLIANCE FAILED") {
@@ -297,6 +318,25 @@ function gameOver(message = "COMPLIANCE FAILED") {
         });
     }
 }
+
+// --- MODIFICATION: New function to handle winning the game ---
+function questComplete() {
+    isGameOver = true;
+    isGameWon = true; // Set the win flag
+    controls.isLocked = false;
+    if (document.pointerLockElement) document.exitPointerLock();
+    const blocker = document.getElementById('blocker');
+    blocker.innerHTML = `<div class="menu-box">
+                            <h1 class="menu-header">
+                                <span>You Have Successfully Finished the Quest.</span>
+                            </h1>
+                            <p>Final Score: ${score}</p>
+                            <p style="font-size: 24px; margin-top: 20px;">Click or Press SPACE to Play Again</p>
+                        </div>`;
+    blocker.style.display = 'flex';
+    blocker.style.flexDirection = 'column';
+}
+// --- END MODIFICATION ---
 
 function winGame() {
     gameOver("OBJECTIVE COMPLETE. MANKIND IS SAVED.");
@@ -360,7 +400,12 @@ function animate() {
                 if ((mouse.isDown || keys['KeyB']) && ['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name)) {
                     shoot();
                 }
-                if (health < lastHealth) { damageFlashElement.style.opacity = 0.5; setTimeout(() => { damageFlashElement.style.opacity = 0; }, 120); }
+                if (health < lastHealth) {
+                    if (damageFlashElement) {
+                        damageFlashElement.style.opacity = 0.5;
+                        setTimeout(() => { damageFlashElement.style.opacity = 0; }, 120);
+                    }
+                }
                 lastHealth = health;
                 updatePlayer(delta);
                 updateInteractions();
@@ -557,27 +602,12 @@ function updateLightning(delta) {
         const strikePos = new THREE.Vector3().copy(playerObject.position);
         strikePos.x += (Math.random() - 0.5) * 60;
         strikePos.z += (Math.random() - 0.5) * 60;
-        
-        const lightningBolt = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.5, 0.2, 200, 8),
-            new THREE.MeshBasicMaterial({ color: 0x88ffff, transparent: true, opacity: 0.9 })
-        );
-        lightningBolt.position.set(strikePos.x, 100, strikePos.z);
-        scene.add(lightningBolt);
-        
-        const pointLight = new THREE.PointLight(0x88ffff, 5, 100);
-        pointLight.position.copy(strikePos);
-        scene.add(pointLight);
+        strikePos.y = 0; // Ground level
 
-        if (playerObject.position.distanceTo(strikePos) < 5) {
-            health = Math.max(0, health - 25);
-            playSound('player_damage');
-            lastAttackerPosition = strikePos.clone();
-        }
+        const startPos = strikePos.clone();
+        startPos.y = 200; // From the sky
 
-        setTimeout(() => {
-            scene.remove(lightningBolt);
-            scene.remove(pointLight);
-        }, 150);
+        // Use the new generic lightning function
+        createLightningBolt(startPos, strikePos, 25);
     }
 }
