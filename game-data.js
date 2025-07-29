@@ -38,9 +38,9 @@ const GameData = {
             name: 'Health Pack',
             description: 'Restores a small amount of health.',
             levels: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
-            spawnFrequency: 5,
-            respawnTime: 15000,
-            properties: { amount: 25 },
+            spawnFrequency: 15,
+            respawnTime: 10000,
+            properties: { amount: 50 },
             model: () => {
                 const group = new THREE.Group(); const redMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); const whiteMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xcccccc, emissiveIntensity: 1.0 }); const pack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.2), whiteMaterial); group.add(pack); const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.22), redMaterial); const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.22), redMaterial); group.add(crossH, crossV); return group;
             },
@@ -85,7 +85,7 @@ const GameData = {
         glowing_orb: {
             name: 'Glowing Orb',
             description: 'A mysterious alien artifact. Enemies seem to ignore whoever carries it.',
-            levels: ['volcanic', 'crystal'],
+            levels: ['volcanic'],
             spawnFrequency: 10,
             respawnTime: 25000,
             model: () => {
@@ -154,9 +154,9 @@ const GameData = {
             name: 'Shotgun Ammo',
             description: 'A box of shells for the shotgun.',
             levels: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
-            spawnFrequency: 3,
-            respawnTime: 12000,
-            properties: { ammoType: 'shotgun', amount: 8 },
+            spawnFrequency: 5,
+            respawnTime: 10000,
+            properties: { ammoType: 'shotgun', amount: 20 },
             model: () => {
                 const g = new THREE.Group(); const box = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.2,0.3), new THREE.MeshStandardMaterial({color:0x442211})); g.add(box); for(let i=-0.1; i<=0.1; i+=0.1) { const s=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.25,8), new THREE.MeshStandardMaterial({color:0xcc0000})); s.rotation.x=Math.PI/2; s.position.set(i,0.1,0); g.add(s);} return g;
             }
@@ -165,16 +165,16 @@ const GameData = {
             name: 'Machinegun Ammo',
             description: 'A magazine of bullets for the machine gun.',
             levels: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
-            spawnFrequency: 3,
+            spawnFrequency: 5,
             respawnTime: 12000,
-            properties: { ammoType: 'machinegun', amount: 60 },
+            properties: { ammoType: 'machinegun', amount: 80 },
             model: () => new THREE.Mesh(new THREE.BoxGeometry(0.5,0.2,0.3), new THREE.MeshStandardMaterial({color:0x333333}))
         },
         ammo_rocket: {
             name: 'Rocket Ammo',
             description: 'A rack of rockets for the rocket launcher.',
-            levels: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
-            spawnFrequency: 2,
+            levels: ['desert', 'volcanic', 'ice', 'toxic', 'crystal'],
+            spawnFrequency: 5,
             respawnTime: 12000,
             properties: { ammoType: 'rocket', amount: 5 },
             model: () => {
@@ -184,16 +184,16 @@ const GameData = {
         ammo_plasma: {
             name: 'Plasma Ammo',
             description: 'A charged battery for the plasma gun.',
-            levels: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
-            spawnFrequency: 3,
+            levels: ['volcanic', 'ice', 'toxic', 'crystal'],
+            spawnFrequency: 5,
             respawnTime: 12000,
-            properties: { ammoType: 'plasma', amount: 30 },
+            properties: { ammoType: 'plasma', amount: 40 },
             model: () => new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.4,16), new THREE.MeshStandardMaterial({color:0xff00ff, emissive:0xff00ff, emissiveIntensity:1, transparent:true, opacity:0.7}))
         },
         ammo_grenade: {
             name: 'Grenade Ammo',
             description: 'A pack of grenades for the grenade launcher.',
-            levels: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
+            levels: ['desert', 'volcanic', 'ice', 'toxic', 'crystal'],
             spawnFrequency: 2,
             respawnTime: 12000,
             properties: { ammoType: 'grenade', amount: 3 },
@@ -206,8 +206,8 @@ const GameData = {
             description: 'High-caliber rounds for the sniper rifle.',
             levels: ['city', 'desert', 'ice'],
             spawnFrequency: 2,
-            respawnTime: 20000,
-            properties: { ammoType: 'sniper', amount: 5 },
+            respawnTime: 10000,
+            properties: { ammoType: 'sniper', amount: 25 },
             model: () => {
                  const g = new THREE.Group(); 
                  const b = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.5,8), new THREE.MeshStandardMaterial({color:0x777766})); 
@@ -225,7 +225,7 @@ const GameData = {
             levels: ['crystal'],
             spawnFrequency: 1,
             respawnTime: 60000,
-            properties: { ammoType: 'blackhole', amount: 1 },
+            properties: { ammoType: 'blackhole', amount: 5 },
             model: () => {
                 const g = new THREE.Group();
                 const containerMat = new THREE.MeshStandardMaterial({color: 0xcccccc, transparent: true, opacity: 0.4, roughness: 0.1});
