@@ -145,7 +145,7 @@ function setupControls() {
     };
     document.getElementById('blocker').addEventListener('click', (e) => onBlockerInteract(e));
     document.getElementById('blocker').addEventListener('touchend', (e) => {
-        if (e.target.nodeName === 'BUTTON') return;
+        // Allow touch events on buttons within the blocker overlay to be processed
         onBlockerInteract(e);
     });
 
@@ -291,7 +291,7 @@ function setupControls() {
             state.currentX = touch.clientX;
             state.currentY = touch.clientY;
             
-            if (state.zone === 'look') {
+            if (state.zone === 'look' && gameSettings.touchLookEnabled) {
                 const dx = state.currentX - state.startX;
                 const dy = state.currentY - state.startY;
                 const deadZone = 20;
@@ -404,6 +404,14 @@ function setupControls() {
     if (toggleTouchButton) {
         toggleTouchButton.addEventListener('click', toggleTouchControlsEnabled);
     }
+
+    // New button for toggling touch look
+    const toggleTouchLookButton = document.getElementById('toggle-touch-look-button');
+    if (toggleTouchLookButton) {
+        toggleTouchLookButton.addEventListener('click', toggleTouchLookEnabled);
+        // Initialize button text based on current setting
+        toggleTouchLookButton.textContent = `Touch Look: ${gameSettings.touchLookEnabled ? 'ON' : 'OFF'}`;
+    }
     
     const exitVehicleButton = document.getElementById('exit-vehicle-button');
     exitVehicleButton.addEventListener('click', exitMotorcycle);
@@ -492,6 +500,15 @@ function toggleTouchControlsEnabled() {
         button.textContent = `Touch Controls: ${gameSettings.touchControlsEnabled ? 'ON' : 'OFF'}`;
     }
     console.log(`Touch controls set to: ${gameSettings.touchControlsEnabled}`);
+}
+
+function toggleTouchLookEnabled() {
+    gameSettings.touchLookEnabled = !gameSettings.touchLookEnabled;
+    const button = document.getElementById('toggle-touch-look-button');
+    if (button) {
+        button.textContent = `Touch Look: ${gameSettings.touchLookEnabled ? 'ON' : 'OFF'}`;
+    }
+    console.log(`Touch look set to: ${gameSettings.touchLookEnabled}`);
 }
 
 function toggleGoggles() {
