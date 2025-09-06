@@ -1,6 +1,6 @@
 body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: 'Courier New', Courier, monospace; }
 .overlay { position: absolute; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 100; }
-.menu-box { width: 80%; max-width: 550px; padding: 20px 30px; background-color: rgba(30, 20, 10, 0.95); border: 2px solid #ffaa00; border-radius: 10px; text-align: center; color: #ffaa00; }
+.menu-box { width: 80%; max-width: 900px; max-height: 90vh; overflow-y: auto; padding: 20px 30px; background-color: rgba(30, 20, 10, 0.95); border: 2px solid #ffaa00; border-radius: 10px; text-align: center; color: #ffaa00; }
 h1, p { text-shadow: 1px 1px 3px #000; }
 
 #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background-color: #fff; border-radius: 50%; transform: translate(-50%, -50%); mix-blend-mode: difference; }
@@ -56,7 +56,7 @@ h1, p { text-shadow: 1px 1px 3px #000; }
     top: 0; left: 0;
     width: 100%;
     height: 100%;
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEqSURBVHhe7dNBCcAwEASx/1e8nSABWp8S5u448J2Z+QcghARiQgjEhBCJCSETE0JgQgjEhBCJCSETE0JgQgjEhBCJCSETE0JgQgjEhBCJCSETE0JgQgjEhBCJCSETE0JgQgjEhBCJCSETE0JgQgjEhBCJCSETEyLzDBgARwT5RmsAAAAASUVORK5CYII=');
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAAXNSR0IArs4c6QAAAARNQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEqSURBVHhe7dNBCcAwEASx/1e8nSABWp8S5u448J2Z+QcghARiQgjEhBCJCSETE0JgQgjEhBCJCSETE0JgQgjEhBCJCSETE0JgQgjEhBCJCSETE0JgQgjEhBCJCSETE0JgQgjEhBCJCSETEyLzDBgARwT5RmsAAAAASUVORK5CYII=');
     background-size: cover;
     opacity: 0;
     pointer-events: none;
@@ -232,11 +232,29 @@ h1, p { text-shadow: 1px 1px 3px #000; }
 .header-close-button:hover {
     color: white;
 }
-#inventory-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; gap: 20px; text-align: left; margin-top: 20px; max-height: 70vh; }
+#inventory-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto 1fr; /* Added one more row for the mission map */ gap: 20px; text-align: left; margin-top: 20px; max-height: 70vh; }
 .inventory-section { overflow-y: auto; padding-right: 10px; }
 .inventory-section h2 { text-align: center; margin-bottom: 10px; }
-#inventory-grid > div:nth-child(1) { grid-area: 1 / 1 / 3 / 2; }
-#inventory-grid > div:nth-child(2) { grid-area: 1 / 2 / 3 / 3; }
+#inventory-grid > div:nth-child(1) { grid-area: 1 / 1 / 4 / 2; /* Spans all rows in the first column */ }
+#inventory-grid > div:nth-child(2) { grid-area: 1 / 2 / 2 / 3; /* Items list, top right */ }
+#inventory-map-container-wrapper { /* New wrapper for maps */
+    grid-area: 2 / 2 / 4 / 3; /* Spans from the second row to the end, second column */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto; /* Allow scrolling if map content is too tall */
+    padding-right: 10px;
+}
+#inventory-map-container-wrapper h2 {
+    text-align: center;
+    margin-bottom: 10px;
+}
+#level-progression-inventory {
+    width: 100%;
+    height: 60px; /* Fixed height for the progression bar */
+    background: #111;
+    border: 1px solid #ffaa00;
+}
 .inventory-item { display: flex; align-items: center; padding: 8px; margin-bottom: 5px; background: rgba(0,0,0,0.3); border: 1px solid #ff8800; border-radius: 4px; cursor: pointer; }
 .inventory-item:hover { background: rgba(255,170,0,0.3); }
 .inventory-item.item-active { border-color: #00ffff; box-shadow: 0 0 8px #00ffff; }
@@ -247,7 +265,27 @@ h1, p { text-shadow: 1px 1px 3px #000; }
 .inventory-item-info .item-detail { font-size: 0.9em; opacity: 0.8; }
 #inventory-map-canvas { width: 100%; height: auto; aspect-ratio: 1 / 1; background: #111; border: 1px solid #ffaa00; }
 
-#debug-menu { display: none; } #debug-content { position: relative; max-width: 90%; width: 1200px; height: 90vh; overflow-y: scroll; -ms-overflow-style: none; scrollbar-width: none; } #debug-content::-webkit-scrollbar { display: none; } .debug-grid { display: grid; grid-template-columns: 220px 220px 1fr; grid-template-rows: 1fr 1fr; gap: 15px; text-align: left; margin-top: 15px; height: calc(100% - 120px); } .debug-section { background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; border: 1px solid #ff8800; overflow-y: auto; } .debug-section h2 { text-align: center; margin-top: 0; margin-bottom: 10px; font-size: 1.2em; } .debug-grid > div:nth-child(1) { grid-area: 1 / 1 / 2 / 2; } .debug-grid > div:nth-child(2) { grid-area: 2 / 1 / 3 / 2; } .debug-grid > div:nth-child(3) { grid-area: 1 / 2 / 2 / 3; } .debug-grid > div:nth-child(4) { grid-area: 2 / 2 / 3 / 3; } .debug-grid > .preview-section { grid-area: 1 / 3 / 3 / 4; display: flex; flex-direction: column;} #preview-canvas { width: 100%; min-height: 300px; background-color: #333; border-radius: 5px; flex-grow: 1; cursor: grab; } #preview-canvas:active { cursor: grabbing; } #preview-controls { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+#debug-menu { display: none; } 
+#debug-content { 
+    position: relative; 
+    width: min(90vw, 1200px); /* Adjust to browser size, max 1200px */
+    height: 90vh; 
+    overflow-y: scroll; 
+    -ms-overflow-style: none; 
+    scrollbar-width: none; 
+} 
+#debug-content::-webkit-scrollbar { display: none; } 
+.debug-grid { display: grid; grid-template-columns: 220px 220px 1fr; grid-template-rows: 1fr 1fr; gap: 15px; text-align: left; margin-top: 15px; height: calc(100% - 120px); } 
+.debug-section { background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; border: 1px solid #ff8800; overflow-y: auto; } 
+.debug-section h2 { text-align: center; margin-top: 0; margin-bottom: 10px; font-size: 1.2em; } 
+.debug-grid > div:nth-child(1) { grid-area: 1 / 1 / 2 / 2; } 
+.debug-grid > div:nth-child(2) { grid-area: 2 / 1 / 3 / 2; } 
+.debug-grid > div:nth-child(3) { grid-area: 1 / 2 / 2 / 3; } 
+.debug-grid > div:nth-child(4) { grid-area: 2 / 2 / 3 / 3; } 
+.debug-grid > .preview-section { grid-area: 1 / 3 / 3 / 4; display: flex; flex-direction: column;} 
+#preview-canvas { width: 100%; min-height: 300px; background-color: #333; border-radius: 5px; flex-grow: 1; cursor: grab; } 
+#preview-canvas:active { cursor: grabbing; } 
+#preview-controls { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 #preview-description { min-height: 40px; background: rgba(0,0,0,0.2); border: 1px solid #ff8800; border-radius: 4px; padding: 8px; margin-top: 10px; font-size: 0.9em; text-align: center; }
 #preview-slider-container { display: flex; justify-content: space-around; align-items: center; gap: 20px; margin-top: 10px; } #preview-slider-container > div { flex-grow: 1; text-align: center; } .preview-slider { width: 90%; } #preview-controls button, .debug-list-button { background: #555; color: #fff; border: 1px solid #ffaa00; padding: 5px 10px; border-radius: 3px; cursor: pointer; width: 100%; text-align: left; font-family: 'Courier New', Courier, monospace; font-size: 14px;} #preview-controls button { width: auto; } .debug-list-button:hover { background: #777; } #weapon-list { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; } .weapon-list-item { display: flex; flex-direction: column; align-items: center; border: 1px solid #555; padding: 5px; background: rgba(0,0,0,0.2); cursor: pointer; } .weapon-list-item:hover { background: rgba(255,170,0,0.2); }
 .weapon-list-item img { height: 40px; width: 100%; object-fit: contain; background-color: #d3d3d3; } .weapon-list-item p { margin: 5px 0 0 0; font-size: 0.8em; text-align: center; } #debug-scrollbar-track { position: absolute; right: 5px; top: 5px; bottom: 5px; width: 12px; background-color: rgba(0, 0, 0, 0.4); border: 1px solid #ff8800; border-radius: 6px; } #debug-scrollbar-thumb { position: absolute; left: 1px; right: 1px; width: 10px; background-color: #ffaa00; border-radius: 5px; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; } #debug-scrollbar-thumb:hover { opacity: 1; }
