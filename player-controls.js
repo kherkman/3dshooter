@@ -7,6 +7,7 @@
 // --- TOUCH & GAMEPAD CONTROLS STATE ---
 const touchState = {}; // Keyed by touch identifier
 let gamepad = null;
+let hasRequestedDeviceOrientationPermission = false; // New global variable for device motion permission
 
 function setupControls() {
     const mapContainer = document.getElementById('map-container');
@@ -135,6 +136,20 @@ function setupControls() {
             document.documentElement.requestFullscreen().catch(err => {
                 console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
             });
+
+            // Request device orientation/motion permission (iOS 13+)
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function' && !hasRequestedDeviceOrientationPermission) {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            console.log('Device motion/orientation permission granted.');
+                        } else {
+                            console.warn('Device motion/orientation permission denied.');
+                        }
+                        hasRequestedDeviceOrientationPermission = true;
+                    })
+                    .catch(console.error);
+            }
         }
 
         if (isGameOver) {
@@ -177,6 +192,17 @@ function setupControls() {
         }
         toggleOptionsMenu(false);
     });
+    document.getElementById('fullscreen-button').addEventListener('touchend', (e) => { // Added for touch support
+        e.preventDefault(); 
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+        toggleOptionsMenu(false);
+    });
     
     document.addEventListener('fullscreenchange', () => {
         if (typeof onWindowResize === 'function') {
@@ -196,9 +222,21 @@ function setupControls() {
         sbs3dButton.textContent = `Side-by-Side 3D: ${gameSettings.sbs3dEnabled ? 'ON' : 'OFF'}`;
         onWindowResize(); 
     });
+    sbs3dButton.addEventListener('touchend', (e) => { // Added for touch support
+        e.preventDefault();
+        gameSettings.sbs3dEnabled = !gameSettings.sbs3dEnabled;
+        sbs3dButton.textContent = `Side-by-Side 3D: ${gameSettings.sbs3dEnabled ? 'ON' : 'OFF'}`;
+        onWindowResize(); 
+    });
     
     const retroEffectButton = document.getElementById('retro-effect-button');
     retroEffectButton.addEventListener('click', () => {
+        gameSettings.retroEffectEnabled = !gameSettings.retroEffectEnabled;
+        retroEffectButton.textContent = `Retro Effect: ${gameSettings.retroEffectEnabled ? 'ON' : 'OFF'}`;
+        document.getElementById('retro-overlay').classList.toggle('active', gameSettings.retroEffectEnabled);
+    });
+    retroEffectButton.addEventListener('touchend', (e) => { // Added for touch support
+        e.preventDefault();
         gameSettings.retroEffectEnabled = !gameSettings.retroEffectEnabled;
         retroEffectButton.textContent = `Retro Effect: ${gameSettings.retroEffectEnabled ? 'ON' : 'OFF'}`;
         document.getElementById('retro-overlay').classList.toggle('active', gameSettings.retroEffectEnabled);
@@ -291,7 +329,8 @@ function setupControls() {
             state.currentX = touch.clientX;
             state.currentY = touch.clientY;
             
-            if (state.zone === 'look' && gameSettings.touchLookEnabled) {
+            // Only apply touch-and-drag look if gameSettings.touchLookEnabled is true
+            if (state.zone === 'look' && gameSettings.touchLookEnabled) { 
                 const dx = state.currentX - state.startX;
                 const dy = state.currentY - state.startY;
                 const deadZone = 20;
@@ -327,6 +366,9 @@ function setupControls() {
         document.addEventListener('touchmove', onTouchMove, { passive: false });
         document.addEventListener('touchend', onTouchEnd, { passive: false });
         document.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+        // Add device motion listener
+        window.addEventListener('devicemotion', onDeviceMotion, false);
     }
 
     controls = { isLocked: false }; document.addEventListener('mousemove', onMouseMove, false); document.addEventListener('keydown', onKeyDown); document.addEventListener('keyup', onKeyUp); document.addEventListener('wheel', onMouseWheel, { passive: false }); document.addEventListener('mousedown', () => { if(controls.isLocked) mouse.isDown = true; }); document.addEventListener('mouseup', () => mouse.isDown = false); document.addEventListener('click', () => { if (controls.isLocked && !isGameOver && !isPaused && player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) shoot(); });
@@ -403,12 +445,18 @@ function setupControls() {
     const toggleTouchButton = document.getElementById('toggle-touch-button');
     if (toggleTouchButton) {
         toggleTouchButton.addEventListener('click', toggleTouchControlsEnabled);
+        toggleTouchButton.addEventListener('touchend', (e) => { e.preventDefault(); toggleTouchControlsEnabled(); }); // Added for touch support
     }
 
     // New button for toggling touch look
     const toggleTouchLookButton = document.getElementById('toggle-touch-look-button');
     if (toggleTouchLookButton) {
+        // Ensure touch look is OFF by default for device motion control
+        if (typeof gameSettings.touchLookEnabled === 'undefined') {
+            gameSettings.touchLookEnabled = false; 
+        }
         toggleTouchLookButton.addEventListener('click', toggleTouchLookEnabled);
+        toggleTouchLookButton.addEventListener('touchend', (e) => { e.preventDefault(); toggleTouchLookEnabled(); }); // Added for touch support
         // Initialize button text based on current setting
         toggleTouchLookButton.textContent = `Touch Look: ${gameSettings.touchLookEnabled ? 'ON' : 'OFF'}`;
     }
@@ -430,6 +478,29 @@ function setupControls() {
         gamepad = null;
     });
 }
+
+// New function for device motion handling
+function onDeviceMotion(event) {
+    // Only apply if touch-and-drag look is OFF, game is active, and rotation rate data is available
+    if (gameSettings.touchLookEnabled || isGameOver || isPaused || !controls.isLocked || !event.rotationRate) return;
+
+    const rotationRate = event.rotationRate;
+    const sens = 0.005; // Adjust sensitivity
+    const deadZone = 0.1; // Prevent drift from minor device tremors
+
+    // Yaw (left/right) from gamma (Z-axis rotation, typically rotation around device's screen normal)
+    if (Math.abs(rotationRate.gamma) > deadZone) {
+        // Negate gamma for intuitive control (tilting right should look right)
+        playerObject.rotation.y -= rotationRate.gamma * sens;
+    }
+
+    // Pitch (up/down) from beta (X-axis rotation, typically tilting forward/backward)
+    if (Math.abs(rotationRate.beta) > deadZone) {
+        camera.rotation.x -= rotationRate.beta * sens;
+        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+    }
+}
+
 
 function updateGamepadControls(delta) {
     if (!gamepad) return;
@@ -662,16 +733,20 @@ function updatePlayer(delta) {
     // --- END MODIFICATION ---
 
     const lookSpeed = 1.5; // Radians per second
-    if (keys['ArrowLeft']) playerObject.rotation.y += lookSpeed * delta;
-    if (keys['ArrowRight']) playerObject.rotation.y -= lookSpeed * delta;
-    if (keys['ArrowUp']) {
-        camera.rotation.x += lookSpeed * delta;
-        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+    // Keyboard arrow keys for looking around are only active if touchLookEnabled is true (i.e. device motion is OFF)
+    if (gameSettings.touchLookEnabled) {
+        if (keys['ArrowLeft']) playerObject.rotation.y += lookSpeed * delta;
+        if (keys['ArrowRight']) playerObject.rotation.y -= lookSpeed * delta;
+        if (keys['ArrowUp']) {
+            camera.rotation.x += lookSpeed * delta;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        }
+        if (keys['ArrowDown']) {
+            camera.rotation.x -= lookSpeed * delta;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        }
     }
-    if (keys['ArrowDown']) {
-        camera.rotation.x -= lookSpeed * delta;
-        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
-    }
+
 
     if (moveVector.lengthSq() > 0) {
         moveVector.normalize().multiplyScalar(GameWorld.player.speed * delta);
