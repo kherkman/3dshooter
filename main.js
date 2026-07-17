@@ -281,6 +281,11 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
             document.body.requestPointerLock();
         }
     }
+
+    // Dynamic level music swap (if player has already dismissed the blocker)
+    if (hasInteracted) {
+        switchMusicToLevel(levelName);
+    }
 }
 
 
@@ -342,27 +347,138 @@ function winGame() {
 
 function loadSounds() {
     const audioLoader = new THREE.AudioLoader();
-    const soundsToLoad = [ 'background_music', 'player_damage', 'alien_death', 'cyborg_death', 'cyborg_shoot', 'gun_pistol', 'gun_shotgun', 'gun_machinegun', 'gun_rocket', 'gun_plasma', 'gun_grenade', 'gun_axe', 'gun_sniper', 'gun_blackhole', 'blackhole_open', 'blackhole_close' ];
+    const soundsToLoad = [ 'player_damage', 'alien_death', 'cyborg_death', 'cyborg_shoot', 'gun_pistol', 'gun_shotgun', 'gun_machinegun', 'gun_rocket', 'gun_plasma', 'gun_grenade', 'gun_axe', 'gun_sniper', 'gun_blackhole', 'blackhole_open', 'blackhole_close' ];
+    
+    // Load introductory background music (intro menu)
+    audioLoader.load('background_music.mp3', 
+        (buffer) => {
+            backgroundMusic = new THREE.Audio(audioListener);
+            backgroundMusic.setBuffer(buffer);
+            backgroundMusic.setLoop(true);
+            backgroundMusic.setVolume(gameSettings.musicVolume);
+            if (hasInteracted && !isPaused && player.state === 'on_foot') {
+                backgroundMusic.play();
+            }
+        },
+        () => {},
+        () => console.warn('Could not load intro music background_music.mp3')
+    );
+
     soundsToLoad.forEach(name => {
-        audioLoader.load(`${name}.wav`, 
+        audioLoader.load(`${name}.mp3`, 
             (buffer) => {
-                if (name === 'background_music') {
-                    backgroundMusic = new THREE.Audio(audioListener);
-                    backgroundMusic.setBuffer(buffer);
-                    backgroundMusic.setLoop(true);
-                    backgroundMusic.setVolume(gameSettings.musicVolume);
-                } else {
-                    gameSounds[name] = buffer;
-                }
+                gameSounds[name] = buffer;
             },
             () => {},
-            () => console.warn(`Could not load sound: ${name}.wav`)
+            () => {
+                console.warn(`Could not load sound: ${name}.mp3, using Web Audio fallback.`);
+                gameSounds[name] = 'synthetic'; // Flag for procedural playback
+            }
         );
     });
 }
 
+function switchMusicToLevel(levelName) {
+    const levelMusicMap = {
+        city: 'music_city.mp3',
+        desert: 'music_desert.mp3',
+        volcanic: 'music_volcanic.mp3',
+        ice: 'music_ice.mp3',
+        toxic: 'music_toxic.mp3',
+        crystal: 'music_crystal.mp3'
+    };
+    const trackToLoad = levelMusicMap[levelName] || 'background_music.mp3';
+    
+    if (backgroundMusic && backgroundMusic.isPlaying) {
+        backgroundMusic.stop();
+    }
+    
+    const audioLoader = new THREE.AudioLoader();
+    audioLoader.load(trackToLoad, 
+        (buffer) => {
+            if (!backgroundMusic) {
+                backgroundMusic = new THREE.Audio(audioListener);
+            }
+            backgroundMusic.stop();
+            backgroundMusic.setBuffer(buffer);
+            backgroundMusic.setLoop(true);
+            backgroundMusic.setVolume(gameSettings.musicVolume);
+            if (hasInteracted && !isPaused) {
+                backgroundMusic.play();
+            }
+        },
+        () => {},
+        () => {
+            console.warn(`Could not load level music: ${trackToLoad}. Falling back to default.`);
+            if (trackToLoad !== 'background_music.mp3') {
+                audioLoader.load('background_music.mp3', (fallbackBuf) => {
+                    if (!backgroundMusic) backgroundMusic = new THREE.Audio(audioListener);
+                    backgroundMusic.stop();
+                    backgroundMusic.setBuffer(fallbackBuf);
+                    backgroundMusic.setLoop(true);
+                    backgroundMusic.setVolume(gameSettings.musicVolume);
+                    if (hasInteracted && !isPaused) backgroundMusic.play();
+                });
+            }
+        }
+    );
+}
+
+function playSyntheticSound(name) {
+    if (!audioListener || !audioListener.context) return;
+    const ctx = audioListener.context;
+    
+    // Procedural audio generation using the Web Audio API
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    const volume = gameSettings.sfxVolume;
+
+    if (name.startsWith('gun_') || name === 'cyborg_shoot') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(name === 'gun_rocket' ? 90 : 350, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.12);
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.13);
+    } else if (name.includes('death') || name === 'player_damage') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.linearRampToValueAtTime(20, now + 0.25);
+        gain.gain.setValueAtTime(volume * 1.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.start(now);
+        osc.stop(now + 0.26);
+    } else if (name.startsWith('blackhole_')) {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(name.includes('open') ? 60 : 250, now);
+        osc.frequency.exponentialRampToValueAtTime(name.includes('open') ? 250 : 60, now + 0.4);
+        gain.gain.setValueAtTime(volume * 0.7, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.41);
+    } else {
+        // Generic synthesized blip
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(500, now);
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        osc.start(now);
+        osc.stop(now + 0.09);
+    }
+}
+
 function playSound(name) {
-    if (!gameSounds[name] || !audioListener) return;
+    if (gameSounds[name] === 'synthetic' || !gameSounds[name]) {
+        playSyntheticSound(name);
+        return;
+    }
+    if (!audioListener) return;
     const sound = new THREE.Audio(audioListener);
     sound.setBuffer(gameSounds[name]);
     sound.setVolume(gameSettings.sfxVolume);
