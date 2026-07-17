@@ -131,7 +131,6 @@ function setupControls() {
         }
 
         if (!hasInteracted) {
-            if (backgroundMusic) backgroundMusic.play();
             hasInteracted = true;
             document.documentElement.requestFullscreen().catch(err => {
                 console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
@@ -156,6 +155,8 @@ function setupControls() {
             restartGame();
         } else {
             document.body.requestPointerLock();
+            // Start the actual level music when the blocker is dismissed
+            switchMusicToLevel(currentLevel);
         }
     };
     document.getElementById('blocker').addEventListener('click', (e) => onBlockerInteract(e));
@@ -275,6 +276,19 @@ function setupControls() {
     inventoryMenu.addEventListener('touchend', handleInventoryInteraction);
     document.getElementById('close-inventory').addEventListener('click', toggleInventoryMenu);
     document.getElementById('close-inventory').addEventListener('touchend', toggleInventoryMenu);
+
+    // Link the "Options" button inside the Inventory Window to toggle menu views
+    const optionsBtnInv = document.getElementById('options-button-inventory');
+    if (optionsBtnInv) {
+        const openOptionsFromInv = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleInventoryMenu(); // Close inventory view
+            toggleOptionsMenu(true); // Bring up options view
+        };
+        optionsBtnInv.addEventListener('click', openOptionsFromInv);
+        optionsBtnInv.addEventListener('touchend', openOptionsFromInv);
+    }
 
     const onTouchStart = (event) => {
         if (isGameOver || isPaused || !gameSettings.touchControlsEnabled) return;
@@ -718,7 +732,7 @@ function updatePlayer(delta) {
     if (keys['KeyA']) moveVector.sub(right);
     if (keys['KeyD']) moveVector.add(right);
 
-    // --- MODIFICATION: Touchscreen movement with dynamic speed ---
+    // --- Touchscreen movement with dynamic speed ---
     for (const id in touchState) {
         const state = touchState[id];
         if (state.zone === 'move') {
@@ -738,7 +752,6 @@ function updatePlayer(delta) {
             }
         }
     }
-    // --- END MODIFICATION ---
 
     const lookSpeed = 1.5; // Radians per second
     // Keyboard arrow keys for looking around are only active if touchLookEnabled is true (i.e. device motion is OFF)
