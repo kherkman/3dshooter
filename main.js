@@ -15,7 +15,7 @@ const gameSounds = {};
 let backgroundMusic;
 let hasInteracted = false;
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-const gameSettings = { sfxVolume: 0.4, musicVolume: 0.2, touchControlsEnabled: isTouchDevice, sbs3dEnabled: false, retroEffectEnabled: false };
+const gameSettings = { sfxVolume: 0.4, musicVolume: 0.2, touchControlsEnabled: isTouchDevice, sbs3dEnabled: false, retroEffectEnabled: false, sbsEyeSep: 0.064 };
 
 
 // --- GAME OBJECTS & COLLECTIONS ---
@@ -190,7 +190,7 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     const levelData = GameWorld.levels[levelName].create(scene, buildingColliders, vegetation, bunkers);
     levelObjects = { ...levelData };
 
-    // --- MODIFICATION: Level start notification ---
+    // --- LEVEL START NOTIFICATION ---
     const levelIndex = GameWorld.levelOrder.indexOf(levelName);
     const levelDisplayName = GameWorld.levels[levelName].name;
     const notificationContainer = document.getElementById('level-notification-container');
@@ -201,7 +201,6 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
             notificationContainer.classList.remove('show');
         }, 5000); // Display for 5 seconds
     }
-    // --- END MODIFICATION ---
     
     if (levelName === 'city') {
         playerObject.position.set(0, 0, 10);
@@ -319,7 +318,7 @@ function gameOver(message = "COMPLIANCE FAILED") {
     }
 }
 
-// --- MODIFICATION: New function to handle winning the game ---
+// --- NEW FUNCTION TO HANDLE WINNING THE GAME ---
 function questComplete() {
     isGameOver = true;
     isGameWon = true; // Set the win flag
@@ -336,7 +335,6 @@ function questComplete() {
     blocker.style.display = 'flex';
     blocker.style.flexDirection = 'column';
 }
-// --- END MODIFICATION ---
 
 function winGame() {
     gameOver("OBJECTIVE COMPLETE. MANKIND IS SAVED.");
@@ -459,6 +457,7 @@ function animate() {
         const w = window.innerWidth;
         const h = window.innerHeight;
         
+        stereoCamera.eyeSep = gameSettings.sbsEyeSep;
         stereoCamera.update(camera);
         renderer.setScissorTest(true);
 
@@ -607,7 +606,7 @@ function updateLightning(delta) {
         const startPos = strikePos.clone();
         startPos.y = 200; // From the sky
 
-        // Use the new generic lightning function
+        // Use the generic lightning function
         createLightningBolt(startPos, strikePos, 25);
     }
 }
