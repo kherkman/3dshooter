@@ -216,6 +216,14 @@ function setupControls() {
     const sfxSlider = document.getElementById('sfx-volume'); sfxSlider.value = gameSettings.sfxVolume; sfxSlider.addEventListener('input', (e) => { gameSettings.sfxVolume = parseFloat(e.target.value); });
     const musicSlider = document.getElementById('music-volume'); musicSlider.value = gameSettings.musicVolume; musicSlider.addEventListener('input', (e) => { gameSettings.musicVolume = parseFloat(e.target.value); if(backgroundMusic) backgroundMusic.setVolume(gameSettings.musicVolume); });
     
+    const sbsSeparationSlider = document.getElementById('sbs-separation');
+    if (sbsSeparationSlider) {
+        sbsSeparationSlider.value = gameSettings.sbsEyeSep;
+        sbsSeparationSlider.addEventListener('input', (e) => {
+            gameSettings.sbsEyeSep = parseFloat(e.target.value);
+        });
+    }
+
     const sbs3dButton = document.getElementById('sbs-3d-button');
     sbs3dButton.addEventListener('click', () => {
         gameSettings.sbs3dEnabled = !gameSettings.sbs3dEnabled;
