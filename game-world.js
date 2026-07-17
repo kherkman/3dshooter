@@ -32,6 +32,7 @@ const GameWorld = {
     levels: {
         city: {
             name: 'City',
+            musicFile: 'music_city.mp3',
             spawnRange: 190,
             initialAlienCount: 15,
             fogColor: 0x8899aa,
@@ -66,6 +67,7 @@ const GameWorld = {
         },
         desert: {
             name: 'Desert',
+            musicFile: 'music_desert.mp3',
             spawnRange: 380,
             initialAlienCount: 20,
             fogColor: 0xd2b48c,
@@ -91,6 +93,7 @@ const GameWorld = {
         },
         volcanic: {
             name: 'Volcanic',
+            musicFile: 'music_volcanic.mp3',
             spawnRange: 380,
             initialAlienCount: 25,
             fogColor: 0x221105,
@@ -172,6 +175,7 @@ const GameWorld = {
         },
         ice: {
             name: 'Ice',
+            musicFile: 'music_ice.mp3',
             spawnRange: 380,
             initialAlienCount: 18,
             fogColor: 0xeeeeff,
@@ -233,7 +237,7 @@ const GameWorld = {
                     createWall(40, wallThick, pos.clone().add(new THREE.Vector3(20,wallHeight/2,0)), Math.PI/2); 
                     createWall(40, wallThick, pos.clone().add(new THREE.Vector3(-20,wallHeight/2,0)), Math.PI/2);
                     
-                    // --- MODIFICATION: Replace ladders with stairs
+                    // --- Replacement of ladders with stairs
                     const stairsMat = new THREE.MeshStandardMaterial({color:0x48494B, roughness:0.7});
                     const stairWidth = 4;
                     const stairCount = 15;
@@ -257,7 +261,6 @@ const GameWorld = {
                         scene.add(step);
                         buildingColliders.push(new THREE.Box3().setFromObject(step));
                     }
-                    // --- END MODIFICATION ---
 
                     const patio = new THREE.Mesh(new THREE.BoxGeometry(38,0.5,38), wallMat); 
                     patio.position.copy(pos).add(new THREE.Vector3(0,0.25,0)); 
@@ -301,6 +304,7 @@ const GameWorld = {
         },
         toxic: {
             name: 'Toxic',
+            musicFile: 'music_toxic.mp3',
             spawnRange: 380,
             initialAlienCount: 30,
             fogColor: 0x445544,
@@ -409,6 +413,7 @@ const GameWorld = {
         },
         crystal: {
             name: 'Crystal',
+            musicFile: 'music_crystal.mp3',
             spawnRange: 380,
             initialAlienCount: 35,
             fogColor: 0x110022,
@@ -475,13 +480,12 @@ const GameWorld = {
                     crystal.scale.setScalar(Math.random() * 12 + 3);
                     crystal.position.set((Math.random() - 0.5) * 380, (crystal.scale.y / 2) - Math.random() * 2, (Math.random() - 0.5) * 380);
                     
-                    // --- MODIFICATION: Prevent decorative crystals from spawning in the maze ---
+                    // Prevent decorative crystals from spawning in the maze
                     const distFromMazeCenter = new THREE.Vector2(crystal.position.x, crystal.position.z).distanceTo(new THREE.Vector2(mazeCenterPos.x, mazeCenterPos.z));
                     if (distFromMazeCenter < mazeRadius) {
                         i--; // try again
                         continue;
                     }
-                    // --- END MODIFICATION ---
 
                     crystal.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
                     crystal.castShadow = true;
