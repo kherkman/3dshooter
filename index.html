@@ -7,9 +7,8 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- MODIFICATION: Container for level start notifications -->
+    <!-- CONTAINER FOR LEVEL START NOTIFICATIONS -->
     <div id="level-notification-container"></div>
-    <!-- END MODIFICATION -->
 
     <div id="blocker" class="overlay">
         <div id="instructions" class="menu-box">
@@ -18,9 +17,8 @@
                 <button id="close-intro" class="header-close-button">&times;</button>
             </h1>
 
-            <!-- MODIFICATION: Canvas for level progression in the intro -->
+            <!-- CANVAS FOR LEVEL PROGRESSION IN INTRO -->
             <canvas id="level-progression-intro" width="400" height="50" style="margin-top: 15px; margin-bottom: 15px; background: rgba(0,0,0,0.2); border: 1px solid #ffaa00;"></canvas>
-            <!-- END MODIFICATION -->
             
             <p>The enemy robots have attacked your city. Find a spacecraft and get away!</p>
             
@@ -60,11 +58,13 @@
                     <p><strong>Options:</strong> O / ESC</p>
                 </div>
                 <div>
-                    <h2>AUDIO</h2>
+                    <h2>AUDIO & VIDEO</h2>
                     <p><label for="sfx-volume">Sound FX Volume</label></p>
                     <input type="range" id="sfx-volume" class="volume-slider" min="0" max="1" step="0.05">
                     <p><label for="music-volume">Music Volume</label></p>
                     <input type="range" id="music-volume" class="volume-slider" min="0" max="1" step="0.05">
+                    <p><label for="sbs-separation">3D Camera Separation</label></p>
+                    <input type="range" id="sbs-separation" class="volume-slider" min="0.01" max="0.20" step="0.005" value="0.064">
                 </div>
             </div>
             <div class="options-buttons">
@@ -105,7 +105,6 @@
                 </div>
             </div>
 
-
             <div class="options-grid" style="margin-top: 20px;">
                 <div>
                     <h2>CONTROLS</h2>
@@ -128,7 +127,6 @@
         </div>
     </div>
 
-
     <div id="inventory-menu" class="overlay">
         <div id="inventory-content" class="menu-box">
             <h1 class="menu-header">
@@ -143,10 +141,8 @@
                     <div id="inventory-items-list"></div>
                 </div>
                 <div class="inventory-section" id="inventory-map-section">
-                    <!-- MODIFICATION: Canvas for level progression in inventory -->
                     <h2>MISSION PROGRESS</h2>
                     <canvas id="level-progression-inventory" width="400" height="50" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); border: 1px solid #ffaa00;"></canvas>
-                    <!-- END MODIFICATION -->
                     <h2>SECTOR MAP</h2>
                     <canvas id="inventory-map-canvas" width="400" height="400"></canvas>
                 </div>
