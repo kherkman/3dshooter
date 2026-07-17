@@ -232,17 +232,17 @@ h1, p { text-shadow: 1px 1px 3px #000; }
 .header-close-button:hover {
     color: white;
 }
-#inventory-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto 1fr; /* Added one more row for the mission map */ gap: 20px; text-align: left; margin-top: 20px; max-height: 70vh; }
+#inventory-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto 1fr; gap: 20px; text-align: left; margin-top: 20px; max-height: 70vh; }
 .inventory-section { overflow-y: auto; padding-right: 10px; }
 .inventory-section h2 { text-align: center; margin-bottom: 10px; }
-#inventory-grid > div:nth-child(1) { grid-area: 1 / 1 / 4 / 2; /* Spans all rows in the first column */ }
-#inventory-grid > div:nth-child(2) { grid-area: 1 / 2 / 2 / 3; /* Items list, top right */ }
-#inventory-map-container-wrapper { /* New wrapper for maps */
-    grid-area: 2 / 2 / 4 / 3; /* Spans from the second row to the end, second column */
+#inventory-grid > div:nth-child(1) { grid-area: 1 / 1 / 4 / 2; }
+#inventory-grid > div:nth-child(2) { grid-area: 1 / 2 / 2 / 3; }
+#inventory-map-container-wrapper {
+    grid-area: 2 / 2 / 4 / 3;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    overflow-y: auto; /* Allow scrolling if map content is too tall */
+    overflow-y: auto;
     padding-right: 10px;
 }
 #inventory-map-container-wrapper h2 {
@@ -251,7 +251,7 @@ h1, p { text-shadow: 1px 1px 3px #000; }
 }
 #level-progression-inventory {
     width: 100%;
-    height: 60px; /* Fixed height for the progression bar */
+    height: 60px;
     background: #111;
     border: 1px solid #ffaa00;
 }
@@ -268,7 +268,7 @@ h1, p { text-shadow: 1px 1px 3px #000; }
 #debug-menu { display: none; } 
 #debug-content { 
     position: relative; 
-    width: min(90vw, 1200px); /* Adjust to browser size, max 1200px */
+    width: min(90vw, 1200px);
     height: 90vh; 
     overflow-y: scroll; 
     -ms-overflow-style: none; 
@@ -403,16 +403,15 @@ h1, p { text-shadow: 1px 1px 3px #000; }
 
 #exit-vehicle-button {
     position: absolute;
-    bottom: 130px; /* Above the main HUD */
+    bottom: 130px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 51; /* Above the main HUD but below menus */
-    display: none; /* Hidden by default */
+    z-index: 51;
+    display: none;
     width: auto;
     padding: 10px 20px;
 }
 
-/* --- MODIFICATION: Styles for the level start notification --- */
 #level-notification-container {
     position: absolute;
     top: 15%;
@@ -426,7 +425,7 @@ h1, p { text-shadow: 1px 1px 3px #000; }
     font-size: 28px;
     font-weight: bold;
     text-shadow: 2px 2px 4px #000;
-    z-index: 102; /* Ensure it's on top */
+    z-index: 102;
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
