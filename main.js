@@ -10,6 +10,10 @@ let playerObject, damageFlashElement, mapCanvas, mapCtx, mapBackgroundCanvas, at
 let levelObjects = {}; // To hold ground, lights etc. for easy removal
 const clock = new THREE.Clock();
 
+// --- INTRO STATE ---
+let introStep = 0; // 0: Title only, 1: Story & Controls revealed, 2: Game running
+let isIntroActive = true;
+
 // --- AUDIO ---
 const gameSounds = {};
 let backgroundMusic;
@@ -191,26 +195,51 @@ function init() {
         }
     }
 
-    // Intercept blocker interactions to unpause properly on touch/mobile devices
+    // Stepped Intro interaction handler
     const blockerEl = document.getElementById('blocker');
     if (blockerEl) {
-        const handleBlockerClick = () => {
-            if (!isGameOver) {
-                isPaused = false;
-                blockerEl.style.display = 'none';
-                if (audioListener && audioListener.context && audioListener.context.state === 'suspended') {
-                    audioListener.context.resume();
-                }
-                if (hasInteracted) {
-                    switchMusicToLevel(currentLevel);
-                }
-                // Trigger the level start notification now that the intro screen has been dismissed
-                showLevelStartNotification(currentLevel);
+        const handleBlockerClick = (event) => {
+            if (isGameOver) {
+                restartGame();
+                return;
             }
+            // Allow menu buttons to be clicked inside the blocker without advancing or closing the intro
+            if (event.target.closest('button')) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            advanceIntro();
         };
         blockerEl.addEventListener('click', handleBlockerClick, true);
         blockerEl.addEventListener('touchend', handleBlockerClick, true);
     }
+
+    // Preempt standard key events during intro using capture phase
+    document.addEventListener('keydown', (event) => {
+        if (isIntroActive) {
+            // Keep options toggleable
+            if (event.code === 'KeyO' || event.key === 'Escape') {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            advanceIntro();
+        }
+    }, true);
+
+    // Dynamic Pause handler for Esc/Pointer Lock loss during gameplay
+    document.addEventListener('pointerlockchange', () => {
+        if (document.pointerLockElement !== document.body) {
+            if (!isIntroActive) {
+                isPaused = true;
+            }
+        } else {
+            if (!isIntroActive) {
+                isPaused = false;
+            }
+        }
+    });
 
     // Wrap toggleOptionsMenu globally to ensure the game pauses and unpauses correctly during gameplay
     if (typeof toggleOptionsMenu !== 'undefined') {
@@ -220,8 +249,26 @@ function init() {
             const isCurrentlyOpen = optionsMenu && optionsMenu.style.display.includes('flex');
             const shouldBeOpen = forceOpen !== null ? forceOpen : !isCurrentlyOpen;
 
+            // Prevent requesting pointer lock if intro is still active
+            const originalRequestPointerLock = document.body.requestPointerLock;
+            if (!shouldBeOpen && isIntroActive) {
+                document.body.requestPointerLock = function() {
+                    console.log("Pointer lock bypass: Intro screen active.");
+                };
+            }
+
             originalToggleOptionsMenu(forceOpen);
-            isPaused = shouldBeOpen;
+
+            // Restore pointer lock capability
+            if (!shouldBeOpen && isIntroActive) {
+                document.body.requestPointerLock = originalRequestPointerLock;
+            }
+
+            if (isIntroActive) {
+                isPaused = true;
+            } else {
+                isPaused = shouldBeOpen;
+            }
         };
     }
 
@@ -234,9 +281,9 @@ function init() {
             }
             
             const blocker = document.getElementById('blocker');
-            const isIntroActive = blocker && blocker.style.display !== 'none';
+            const isIntroActiveScreen = blocker && blocker.style.display !== 'none';
             
-            if (backgroundMusic && !backgroundMusic.isPlaying && isIntroActive) {
+            if (backgroundMusic && !backgroundMusic.isPlaying && isIntroActiveScreen) {
                 backgroundMusic.play();
             }
         }
@@ -281,6 +328,49 @@ function init() {
                 });
             }
         });
+    }
+}
+
+function advanceIntro() {
+    const instructions = document.getElementById('instructions');
+    if (!instructions) return;
+
+    const storyP = instructions.querySelector('p');
+    const controlsList = instructions.querySelector('.controls-list-intro');
+    const ctaP = Array.from(instructions.querySelectorAll('p')).find(p => p.textContent.includes('Comply') || p.textContent.includes('SPACE') || p.textContent.includes('Mission'));
+
+    // Force context resume and music start
+    if (!hasInteracted) {
+        hasInteracted = true;
+        if (audioListener && audioListener.context && audioListener.context.state === 'suspended') {
+            audioListener.context.resume();
+        }
+        if (backgroundMusic && !backgroundMusic.isPlaying) {
+            backgroundMusic.play();
+        }
+    }
+
+    if (introStep === 0) {
+        // Step 1: Reveal story and controls
+        if (storyP) storyP.style.display = 'block';
+        if (controlsList) controlsList.style.display = 'block';
+        if (ctaP) {
+            ctaP.textContent = 'Click or Press SPACE to Comply';
+        }
+        introStep = 1;
+    } else if (introStep === 1) {
+        // Step 2: Dismiss intro and start actual game
+        introStep = 2;
+        isIntroActive = false;
+        isPaused = false;
+        
+        const blocker = document.getElementById('blocker');
+        if (blocker) blocker.style.display = 'none';
+
+        switchMusicToLevel(currentLevel);
+        showLevelStartNotification(currentLevel);
+
+        document.body.requestPointerLock();
     }
 }
 
@@ -375,8 +465,7 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     const levelData = GameWorld.levels[levelName].create(scene, buildingColliders, vegetation, bunkers);
     levelObjects = { ...levelData };
 
-    // --- LEVEL START NOTIFICATION ---
-    // Only display notification on tasonvaihto; initial load notification is delayed until blocker is closed
+    // Display level start notification on normal gameplay transition
     if (!isInitialLoad) {
         showLevelStartNotification(levelName);
     }
@@ -421,7 +510,32 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     if (isInitialLoad) {
         health = 500;
         score = 0;
-        isGameWon = false; // Reset win state on a true restart
+        isGameWon = false;
+        isIntroActive = true;
+        introStep = 0;
+
+        const blocker = document.getElementById('blocker');
+        if (blocker) {
+            blocker.style.display = 'flex';
+            blocker.innerHTML = `<div id="instructions" class="menu-box">${initialInstructionsHTML}</div>`;
+            
+            // Re-draw mission progress (planet view) as innerHTML has been completely reset
+            if (typeof drawLevelProgression === 'function') {
+                drawLevelProgression('level-progression-intro');
+            }
+
+            const instructions = document.getElementById('instructions');
+            if (instructions) {
+                const storyP = instructions.querySelector('p');
+                const controlsList = instructions.querySelector('.controls-list-intro');
+                const ctaP = Array.from(instructions.querySelectorAll('p')).find(p => p.textContent.includes('Comply') || p.textContent.includes('SPACE'));
+                if (storyP) storyP.style.display = 'none';
+                if (controlsList) controlsList.style.display = 'none';
+                if (ctaP) {
+                    ctaP.textContent = 'Click or Press SPACE to Reveal Mission';
+                }
+            }
+        }
     }
     lastHealth = health;
     
@@ -453,13 +567,20 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
         const blocker = document.getElementById('blocker');
         blocker.innerHTML = `<div id="instructions" class="menu-box">${initialInstructionsHTML}</div>`;
         blocker.style.flexDirection = '';
-        if (!isTouchDevice && !document.pointerLockElement && (!debugMenu || !debugMenu.style.display.includes('flex'))) {
-            document.body.requestPointerLock();
+        
+        // Re-draw mission progress (planet view) as innerHTML has been completely reset
+        if (typeof drawLevelProgression === 'function') {
+            drawLevelProgression('level-progression-intro');
+        }
+
+        if (!isIntroActive) {
+            if (!isTouchDevice && !document.pointerLockElement && (!debugMenu || !debugMenu.style.display.includes('flex'))) {
+                document.body.requestPointerLock();
+            }
         }
     }
 
-    // Dynamic level music swap (if player has already dismissed the blocker)
-    if (hasInteracted) {
+    if (hasInteracted && !isIntroActive) {
         switchMusicToLevel(levelName);
     }
 }
@@ -473,14 +594,12 @@ function showLevelStartNotification(levelName) {
         notificationContainer.classList.add('show');
         setTimeout(() => {
             notificationContainer.classList.remove('show');
-        }, 5000); // Display for 5 seconds
+        }, 5000); 
     }
 }
 
 
 function restartGame() {
-    // If the game was won, loop back to the start.
-    // Otherwise, just restart the current level.
     const levelToLoad = isGameWon ? 'city' : currentLevel;
     loadLevel(levelToLoad, true);
 }
@@ -512,10 +631,9 @@ function gameOver(message = "COMPLIANCE FAILED") {
     }
 }
 
-// --- OBJECTIVE COMPLETED SCREEN ---
 function questComplete() {
     isGameOver = true;
-    isGameWon = true; // Set the win flag
+    isGameWon = true; 
     controls.isLocked = false;
     if (document.pointerLockElement) document.exitPointerLock();
     const blocker = document.getElementById('blocker');
@@ -545,7 +663,6 @@ function loadSounds() {
         'flyer_shoot', 'shard_roller_shoot', 'stingray_bomb_drop', 'lightning_shoot'
     ];
     
-    // Load introductory background music (intro menu)
     audioLoader.load('music_intro.mp3', 
         (buffer) => {
             backgroundMusic = new THREE.Audio(audioListener);
@@ -553,11 +670,10 @@ function loadSounds() {
             backgroundMusic.setLoop(true);
             backgroundMusic.setVolume(gameSettings.musicVolume);
             
-            // Only auto-play if we are STILL on the intro screen
             const blocker = document.getElementById('blocker');
-            const isIntroActive = blocker && blocker.style.display !== 'none';
+            const isIntroActiveScreen = blocker && blocker.style.display !== 'none';
             
-            if (hasInteracted && isIntroActive) {
+            if (hasInteracted && isIntroActiveScreen) {
                 backgroundMusic.play();
             }
         },
@@ -573,7 +689,7 @@ function loadSounds() {
             () => {},
             () => {
                 console.warn(`Could not load sound: ${name}.mp3, using Web Audio fallback.`);
-                gameSounds[name] = 'synthetic'; // Flag for procedural playback
+                gameSounds[name] = 'synthetic'; 
             }
         );
     });
@@ -603,7 +719,6 @@ function switchMusicToLevel(levelName) {
     };
     const trackToLoad = levelMusicMap[levelName] || 'music_intro.mp3';
     
-    // Prevent double loading of the same track
     if (currentlyLoadingTrack === trackToLoad) return;
     currentlyLoadingTrack = trackToLoad;
     
@@ -621,7 +736,6 @@ function switchMusicToLevel(levelName) {
                 backgroundMusic.setLoop(true);
                 backgroundMusic.setVolume(gameSettings.musicVolume);
                 
-                // Resume Context if suspended before triggering playback
                 if (audioListener && audioListener.context && audioListener.context.state === 'suspended') {
                     audioListener.context.resume().then(() => {
                         if (hasInteracted && !isPaused && !backgroundMusic.isPlaying) {
@@ -672,7 +786,6 @@ function playSyntheticSound(name, pan = 0) {
     if (!audioListener || !audioListener.context) return;
     const ctx = audioListener.context;
     
-    // Procedural audio generation using the Web Audio API with stereo panning support
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     let dest = ctx.destination;
@@ -693,7 +806,6 @@ function playSyntheticSound(name, pan = 0) {
     const volume = gameSettings.sfxVolume;
 
     if (name === 'jetpack') {
-        // Filtered noise swoosh for the jetpack
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(100, now);
         const filter = ctx.createBiquadFilter();
@@ -710,7 +822,6 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.13);
     } else if (name === 'hoverbike') {
-        // Purring engine hum for the hoverbike
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(65 + Math.sin(now * 30) * 8, now);
         gain.gain.setValueAtTime(volume * 0.4, now);
@@ -718,7 +829,6 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.09);
     } else if (name === 'spacecraft') {
-        // Low spacecraft engine hum
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(45 + Math.random() * 10, now);
         const filter = ctx.createBiquadFilter();
@@ -734,7 +844,6 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.15);
     } else if (name === 'pickup_health') {
-        // Springy rising beep
         osc.type = 'sine';
         osc.frequency.setValueAtTime(320, now);
         osc.frequency.exponentialRampToValueAtTime(1100, now + 0.25);
@@ -743,7 +852,6 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.26);
     } else if (name === 'pickup_fuel_cell') {
-        // Futuristic charging double beep
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(580, now);
         osc.frequency.setValueAtTime(880, now + 0.08);
@@ -752,7 +860,6 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.21);
     } else if (name === 'flyer_shoot') {
-        // High-frequency laser sound for Wasps
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(800, now);
         osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
@@ -761,7 +868,6 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.16);
     } else if (name === 'shard_roller_shoot') {
-        // Crystalline clink for Shard Rollers
         osc.type = 'sine';
         osc.frequency.setValueAtTime(1500, now);
         osc.frequency.linearRampToValueAtTime(800, now + 0.1);
@@ -770,7 +876,6 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.13);
     } else if (name === 'stingray_bomb_drop') {
-        // Bomber bomb drop whistle sound
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(400, now);
         osc.frequency.linearRampToValueAtTime(200, now + 0.3);
@@ -779,7 +884,6 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.31);
     } else if (name === 'lightning_shoot') {
-        // Turret electrical lightning crackle discharge sound
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(120, now);
         osc.frequency.setValueAtTime(250, now + 0.05);
@@ -797,7 +901,6 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.19);
     } else if (name === 'alien_death' || name === 'cyborg_death') {
-        // Low-frequency explosion sound for enemy destruction via WebAudio
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(200, now);
         osc.frequency.exponentialRampToValueAtTime(20, now + 0.45);
@@ -840,7 +943,6 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.41);
     } else {
-        // Generic synthesized blip
         osc.type = 'sine';
         osc.frequency.setValueAtTime(500, now);
         gain.gain.setValueAtTime(volume, now);
@@ -853,9 +955,7 @@ function playSyntheticSound(name, pan = 0) {
 function playSound(name, sourcePosition = null) {
     let pan = 0;
     
-    // Dynamically calculate spatial panning if camera and coordinates are available
     if (camera) {
-        // Spatial coordinate tracking fallback engine
         if (!sourcePosition) {
             if (name === 'cyborg_shoot') {
                 let closestCyborg = null;
@@ -894,7 +994,7 @@ function playSound(name, sourcePosition = null) {
             const dir = sourcePosition.clone().sub(camPos).normalize();
             const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()));
             pan = dir.dot(right);
-            pan = Math.max(-1, Math.min(1, pan)); // Clamp to stereo panning boundaries
+            pan = Math.max(-1, Math.min(1, pan)); 
         }
     }
 
@@ -940,14 +1040,12 @@ function animate() {
     }
 
     if (!isPaused) {
-        // Track the count of projectiles before the update loop to capture new shots dynamically
         const prevAlienProjCount = alienProjectiles.length;
         const prevShardProjCount = shardProjectiles.length;
         const prevBombCount = bombs.length;
 
         updateGamepadControls(delta);
 
-        // Real-time sound effects engine loops
         if (keys['Space'] && player.hasJetpack && player.jetpackFuel > 0 && !player.canJump && player.state === 'on_foot') {
             playSound('jetpack');
         }
@@ -1012,7 +1110,6 @@ function animate() {
         updateShellCasings(delta);
         updateHitScatters(delta);
 
-        // Dynamically detect new spawns of projectiles to play spatialized shooting sounds
         if (alienProjectiles.length > prevAlienProjCount) {
             const newProj = alienProjectiles[alienProjectiles.length - 1];
             playSound('flyer_shoot', newProj.position);
@@ -1040,12 +1137,10 @@ function animate() {
         stereoCamera.update(camera);
         renderer.setScissorTest(true);
 
-        // Render left eye
         renderer.setScissor(0, 0, w / 2, h);
         renderer.setViewport(0, 0, w / 2, h);
         renderer.render(scene, stereoCamera.cameraL);
         
-        // Render right eye
         renderer.setScissor(w / 2, 0, w / 2, h);
         renderer.setViewport(w / 2, 0, w / 2, h);
         renderer.render(scene, stereoCamera.cameraR);
@@ -1180,12 +1275,11 @@ function updateLightning(delta) {
         const strikePos = new THREE.Vector3().copy(playerObject.position);
         strikePos.x += (Math.random() - 0.5) * 60;
         strikePos.z += (Math.random() - 0.5) * 60;
-        strikePos.y = 0; // Ground level
+        strikePos.y = 0; 
 
         const startPos = strikePos.clone();
-        startPos.y = 200; // From the sky
+        startPos.y = 200; 
 
-        // Use the generic lightning function
         createLightningBolt(startPos, strikePos, 25);
     }
 }
