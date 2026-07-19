@@ -19,7 +19,8 @@ const gameSounds = {};
 let backgroundMusic;
 let hasInteracted = false;
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-const gameSettings = { sfxVolume: 0.4, musicVolume: 0.2, touchControlsEnabled: isTouchDevice, sbs3dEnabled: false, retroEffectEnabled: false, sbsEyeSep: 0.064, gyroLookEnabled: false };
+// SFX Volume decreased to 0.15, Music Volume increased to 0.4
+const gameSettings = { sfxVolume: 0.15, musicVolume: 0.4, touchControlsEnabled: isTouchDevice, sbs3dEnabled: false, retroEffectEnabled: false, sbsEyeSep: 0.064, gyroLookEnabled: false };
 
 
 // --- GAME OBJECTS & COLLECTIONS ---
@@ -80,6 +81,34 @@ function init() {
     audioListener = new THREE.AudioListener();
     camera.add(audioListener);
     
+    // Web Audio FX Chain: LPF, HPF, Limiter
+    const ctx = audioListener.context;
+    const lpf = ctx.createBiquadFilter();
+    lpf.type = 'lowpass';
+    lpf.frequency.setValueAtTime(20000, ctx.currentTime);
+
+    const hpf = ctx.createBiquadFilter();
+    hpf.type = 'highpass';
+    hpf.frequency.setValueAtTime(20, ctx.currentTime);
+
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.setValueAtTime(-1.0, ctx.currentTime);
+    limiter.knee.setValueAtTime(0, ctx.currentTime);
+    limiter.ratio.setValueAtTime(20, ctx.currentTime);
+    limiter.attack.setValueAtTime(0.003, ctx.currentTime);
+    limiter.release.setValueAtTime(0.1, ctx.currentTime);
+
+    // Route audioListener gain through the chain
+    audioListener.gain.disconnect();
+    audioListener.gain.connect(lpf);
+    lpf.connect(hpf);
+    hpf.connect(limiter);
+    limiter.connect(ctx.destination);
+
+    audioListener.lpf = lpf;
+    audioListener.hpf = hpf;
+    audioListener.limiter = limiter;
+
     // Monkey-patch THREE.Audio.stop to prevent crashes if source is null
     if (THREE && THREE.Audio) {
         const originalAudioStop = THREE.Audio.prototype.stop;
@@ -328,6 +357,66 @@ function init() {
                 });
             }
         });
+    }
+
+    // Intro Background Media Handling (intro.png / intro.mp4)
+    const introBgContainer = document.createElement('div');
+    introBgContainer.id = 'intro-media-bg-container';
+    introBgContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; pointer-events: none;';
+    
+    const instructions = document.getElementById('instructions');
+    if (instructions) {
+        instructions.appendChild(introBgContainer);
+        
+        let hasVideo = false;
+        let hasImage = false;
+        
+        const img = document.createElement('img');
+        img.src = 'intro.png';
+        img.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1s ease-in-out;';
+        
+        const video = document.createElement('video');
+        video.src = 'intro.mp4';
+        video.muted = true;
+        video.playsInline = true;
+        video.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1s ease-in-out;';
+        
+        img.onload = () => {
+            hasImage = true;
+            introBgContainer.appendChild(img);
+            if (!hasVideo) {
+                img.style.opacity = '1';
+            }
+        };
+        img.onerror = () => {
+            hasImage = false;
+        };
+        
+        video.oncanplaythrough = () => {
+            if (hasVideo) return;
+            hasVideo = true;
+            introBgContainer.appendChild(video);
+            video.style.opacity = '1';
+            video.play().catch(e => console.warn("Intro video playback failed:", e));
+            
+            video.onended = () => {
+                video.style.opacity = '0';
+                if (hasImage) {
+                    img.style.opacity = '1';
+                }
+                setTimeout(() => {
+                    if (video.parentNode) {
+                        introBgContainer.removeChild(video);
+                    }
+                }, 1000);
+            };
+        };
+        video.onerror = () => {
+            hasVideo = false;
+            if (hasImage) {
+                img.style.opacity = '1';
+            }
+        };
     }
 }
 
@@ -698,12 +787,18 @@ function loadSounds() {
 function safeStopMusic() {
     if (backgroundMusic) {
         try {
-            if (backgroundMusic.isPlaying && backgroundMusic.source) {
+            if (backgroundMusic.isPlaying) {
                 backgroundMusic.stop();
             }
         } catch (e) {
             console.warn("Bypassed error during stopMusic:", e);
         }
+        try {
+            if (backgroundMusic.source) {
+                backgroundMusic.source.disconnect();
+            }
+        } catch (e) {}
+        backgroundMusic = null;
     }
 }
 
@@ -728,22 +823,21 @@ function switchMusicToLevel(levelName) {
     audioLoader.load(trackToLoad, 
         (buffer) => {
             try {
-                if (!backgroundMusic) {
-                    backgroundMusic = new THREE.Audio(audioListener);
-                }
-                safeStopMusic();
+                safeStopMusic(); // double check to prevent loading overlap issues
+                
+                backgroundMusic = new THREE.Audio(audioListener);
                 backgroundMusic.setBuffer(buffer);
                 backgroundMusic.setLoop(true);
                 backgroundMusic.setVolume(gameSettings.musicVolume);
                 
                 if (audioListener && audioListener.context && audioListener.context.state === 'suspended') {
                     audioListener.context.resume().then(() => {
-                        if (hasInteracted && !isPaused && !backgroundMusic.isPlaying) {
+                        if (hasInteracted && !isPaused) {
                             backgroundMusic.play();
                         }
                     });
                 } else {
-                    if (hasInteracted && !isPaused && !backgroundMusic.isPlaying) {
+                    if (hasInteracted && !isPaused) {
                         backgroundMusic.play();
                     }
                 }
@@ -760,18 +854,18 @@ function switchMusicToLevel(levelName) {
             if (trackToLoad !== 'music_intro.mp3') {
                 audioLoader.load('music_intro.mp3', (fallbackBuf) => {
                     try {
-                        if (!backgroundMusic) backgroundMusic = new THREE.Audio(audioListener);
                         safeStopMusic();
+                        backgroundMusic = new THREE.Audio(audioListener);
                         backgroundMusic.setBuffer(fallbackBuf);
                         backgroundMusic.setLoop(true);
                         backgroundMusic.setVolume(gameSettings.musicVolume);
                         
                         if (audioListener && audioListener.context && audioListener.context.state === 'suspended') {
                             audioListener.context.resume().then(() => {
-                                if (hasInteracted && !isPaused && !backgroundMusic.isPlaying) backgroundMusic.play();
+                                if (hasInteracted && !isPaused) backgroundMusic.play();
                             });
                         } else {
-                            if (hasInteracted && !isPaused && !backgroundMusic.isPlaying) backgroundMusic.play();
+                            if (hasInteracted && !isPaused) backgroundMusic.play();
                         }
                     } catch (e) {
                         console.error("Error setting up fallback music buffer:", e);
@@ -788,7 +882,7 @@ function playSyntheticSound(name, pan = 0) {
     
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    let dest = ctx.destination;
+    let dest = audioListener.gain || ctx.destination; // Route synthetics through master limiter chain
     
     if (ctx.createStereoPanner) {
         const panner = ctx.createStereoPanner();
