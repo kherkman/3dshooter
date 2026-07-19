@@ -427,7 +427,14 @@ function winGame() {
 
 function loadSounds() {
     const audioLoader = new THREE.AudioLoader();
-    const soundsToLoad = [ 'player_damage', 'alien_death', 'cyborg_death', 'cyborg_shoot', 'gun_pistol', 'gun_shotgun', 'gun_machinegun', 'gun_rocket', 'gun_plasma', 'gun_grenade', 'gun_axe', 'gun_sniper', 'gun_blackhole', 'blackhole_open', 'blackhole_close' ];
+    const soundsToLoad = [ 
+        'player_damage', 'alien_death', 'cyborg_death', 'cyborg_shoot', 
+        'gun_pistol', 'gun_shotgun', 'gun_machinegun', 'gun_rocket', 
+        'gun_plasma', 'gun_grenade', 'gun_axe', 'gun_sniper', 'gun_blackhole', 
+        'blackhole_open', 'blackhole_close',
+        'jetpack', 'hoverbike', 'spacecraft', 'pickup_health', 'pickup_fuel_cell',
+        'flyer_shoot', 'shard_roller_shoot', 'stingray_bomb_drop', 'lightning_shoot'
+    ];
     
     // Load introductory background music (intro menu)
     audioLoader.load('music_intro.mp3', 
