@@ -252,8 +252,14 @@
 
             const playWinMusic = () => {
                 // Stop base background level music if it is active
-                if (typeof backgroundMusic !== 'undefined' && backgroundMusic && backgroundMusic.isPlaying) {
-                    backgroundMusic.stop();
+                if (typeof backgroundMusic !== 'undefined' && backgroundMusic) {
+                    try {
+                        if (backgroundMusic.isPlaying && backgroundMusic.source) {
+                            backgroundMusic.stop();
+                        }
+                    } catch (e) {
+                        console.warn("Bypassed error during win music stop:", e);
+                    }
                 }
                 if (!winAudio) {
                     winAudio = new Audio('music_finish.mp3');
