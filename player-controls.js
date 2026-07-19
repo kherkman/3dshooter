@@ -53,6 +53,10 @@ function setupControls() {
         }
 
         if (!controls.isLocked && !isGameOver && (event.code === 'Space' || event.key === ' ')) {
+            // Block Pointer Lock request on spacebar if the intro is currently active
+            if (typeof isIntroActive !== 'undefined' && isIntroActive) {
+                return;
+            }
             if (!hasInteracted) { 
                 if(backgroundMusic) backgroundMusic.play(); 
                 hasInteracted = true; 
@@ -119,7 +123,11 @@ function setupControls() {
     document.addEventListener('pointerlockchange', () => {
         if (document.pointerLockElement === document.body) {
             controls.isLocked = true;
-            isPaused = false;
+            if (typeof isIntroActive !== 'undefined' && isIntroActive) {
+                isPaused = true;
+            } else {
+                isPaused = false;
+            }
             
             const optionsMenu = document.getElementById('options-menu');
             const inventoryMenuEl = document.getElementById('inventory-menu');
@@ -127,7 +135,7 @@ function setupControls() {
             
             if (optionsMenu) optionsMenu.style.display = 'none';
             if (inventoryMenuEl) inventoryMenuEl.style.display = 'none';
-            if (blocker) blocker.style.display = 'none';
+            if (blocker && (!isIntroActive)) blocker.style.display = 'none';
         } else {
             controls.isLocked = false;
             
@@ -137,6 +145,7 @@ function setupControls() {
             if (!isGameOver && !hasOpenInventory && !hasOpenDebug) {
                 const optionsMenu = document.getElementById('options-menu');
                 if (optionsMenu) optionsMenu.style.display = 'flex';
+                isPaused = true; // Pause game when Pointer Lock is lost (e.g. Esc is pressed)
             }
         }
     });
@@ -144,6 +153,11 @@ function setupControls() {
     const onBlockerInteract = (event) => {
         if (event.target.id === 'options-button-intro' || event.target.id === 'options-button-gameover') {
             toggleOptionsMenu(true);
+            return;
+        }
+        if (event.target.id === 'show-touch-controls-intro') {
+            const touchMenu = document.getElementById('touch-controls-menu');
+            if (touchMenu) touchMenu.style.display = 'flex';
             return;
         }
 
@@ -171,6 +185,9 @@ function setupControls() {
         if (isGameOver) {
             restartGame();
         } else {
+            if (typeof isIntroActive !== 'undefined' && isIntroActive) {
+                return; // Let main.js stepped reveal logic handle it instead
+            }
             document.body.requestPointerLock();
             // Start the actual level music when the blocker is dismissed
             switchMusicToLevel(currentLevel);
@@ -191,6 +208,10 @@ function setupControls() {
         e.stopPropagation();
         const blocker = document.getElementById('blocker');
         if (blocker) blocker.style.display = 'none';
+        isIntroActive = false;
+        isPaused = false;
+        document.body.requestPointerLock();
+        switchMusicToLevel(currentLevel);
     };
     if (closeIntroButton) {
         closeIntroButton.addEventListener('click', closeIntroHandler);
@@ -242,7 +263,7 @@ function setupControls() {
         }
         const optionsMenu = document.getElementById('options-menu');
         const hasOpenOptions = optionsMenu && optionsMenu.style.display.includes('flex');
-        if (!document.fullscreenElement && !isPaused && !isGameOver && !hasOpenOptions) {
+        if (!document.fullscreenElement && !isPaused && !isGameOver && !hasOpenOptions && (!isIntroActive)) {
             document.body.requestPointerLock();
         }
     });
@@ -716,6 +737,7 @@ function toggleOptionsMenu(forceOpen = null) {
     if (shouldBeOpen) {
         document.exitPointerLock();
         if (optionsMenu) optionsMenu.style.display = 'flex';
+        isPaused = true;
     } else {
         if (optionsMenu) optionsMenu.style.display = 'none';
         
@@ -723,7 +745,12 @@ function toggleOptionsMenu(forceOpen = null) {
         const hasOpenDebug = debugMenu && debugMenu.style && debugMenu.style.display.includes('flex');
         
         if (!hasOpenInventory && !hasOpenDebug && !isGameOver) {
-            document.body.requestPointerLock();
+            if (typeof isIntroActive !== 'undefined' && isIntroActive) {
+                isPaused = true;
+            } else {
+                document.body.requestPointerLock();
+                isPaused = false;
+            }
         }
     }
 }
