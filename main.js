@@ -75,6 +75,25 @@ function init() {
     stereoCamera = new THREE.StereoCamera();
     audioListener = new THREE.AudioListener();
     camera.add(audioListener);
+    
+    // Monkey-patch THREE.Audio.stop to prevent crashes if source is null
+    if (THREE && THREE.Audio) {
+        const originalAudioStop = THREE.Audio.prototype.stop;
+        THREE.Audio.prototype.stop = function() {
+            if (!this.source) {
+                this.isPlaying = false;
+                return this;
+            }
+            try {
+                return originalAudioStop.apply(this, arguments);
+            } catch (e) {
+                console.warn("Bypassed error during THREE.Audio.stop:", e);
+                this.isPlaying = false;
+                return this;
+            }
+        };
+    }
+
     loadSounds();
     playerObject = new THREE.Object3D();
     playerObject.position.set(0, 0, 10);
@@ -90,6 +109,9 @@ function init() {
     inventoryMenu = document.getElementById('inventory-menu');
     cockpitOverlayElement = document.getElementById('cockpit-overlay');
     wormAttackOverlay = document.getElementById('worm-attack-overlay');
+    
+    // Initialize debugMenu right away so it is never undefined
+    debugMenu = document.getElementById('debug-menu');
 
     GameData.weapons.forEach(w => gunModels.push(w.model(true)));
     cockpitJoystick = GameWorld.spacecraft.createJoystickModel();
@@ -176,6 +198,9 @@ function init() {
             if (!isGameOver) {
                 isPaused = false;
                 blockerEl.style.display = 'none';
+                if (audioListener && audioListener.context && audioListener.context.state === 'suspended') {
+                    audioListener.context.resume();
+                }
                 if (hasInteracted) {
                     switchMusicToLevel(currentLevel);
                 }
@@ -190,7 +215,7 @@ function init() {
         const originalToggleOptionsMenu = toggleOptionsMenu;
         toggleOptionsMenu = function(forceOpen = null) {
             const optionsMenu = document.getElementById('options-menu');
-            const isCurrentlyOpen = optionsMenu.style.display.includes('flex');
+            const isCurrentlyOpen = optionsMenu && optionsMenu.style.display.includes('flex');
             const shouldBeOpen = forceOpen !== null ? forceOpen : !isCurrentlyOpen;
 
             originalToggleOptionsMenu(forceOpen);
@@ -202,6 +227,9 @@ function init() {
     const startIntroMusicOnInteraction = () => {
         if (!hasInteracted) {
             hasInteracted = true;
+            if (audioListener && audioListener.context && audioListener.context.state === 'suspended') {
+                audioListener.context.resume();
+            }
             if (backgroundMusic && !backgroundMusic.isPlaying) {
                 backgroundMusic.play();
             }
@@ -231,8 +259,8 @@ function init() {
         warningDiv.style.boxSizing = 'border-box';
         warningDiv.style.fontFamily = "'Courier New', Courier, monospace";
         warningDiv.innerHTML = `
-            <h1 style="font-size: 24px; margin-bottom: 10px; text-shadow: 1px 1px 3px #000;">Käännä laite vaaka-asentoon / Please Rotate Your Device</h1>
-            <p style="font-size: 16px; text-shadow: 1px 1px 3px #000;">Peli vaatii horisontaalisen asennon, jotta HUD ja ohjaimet näkyvät oikein.<br>This game requires landscape orientation to display the HUD properly.</p>
+            <h1 style="font-size: 24px; margin-bottom: 10px; text-shadow: 1px 1px 3px #000;">Please Rotate Your Device</h1>
+            <p style="font-size: 16px; text-shadow: 1px 1px 3px #000;">This game requires landscape orientation to display the HUD and controls properly.</p>
         `;
         document.body.appendChild(warningDiv);
 
@@ -411,9 +439,6 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     spawnInitialCollectibles();
     if (spacecraftPosition) spawnSpacecraft(spacecraftPosition, isLanding);
     if (levelData.motorcyclePosition) spawnMotorcycle(levelData.motorcyclePosition);
-    if (levelData.domeGuardianPosition) {
-        // The spawnAliens function will handle placing this correctly now
-    }
 
     if (levelName === 'toxic') { toxicStorm = { active: false, timer: 30 + Math.random() * 30 }; } else { toxicStorm.active = false; }
     if (levelName === 'volcanic') { lightningTimer = 3 + Math.random() * 4; }
@@ -428,7 +453,7 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
         const blocker = document.getElementById('blocker');
         blocker.innerHTML = `<div id="instructions" class="menu-box">${initialInstructionsHTML}</div>`;
         blocker.style.flexDirection = '';
-        if (!isTouchDevice && !document.pointerLockElement && !document.getElementById('debug-menu').style.display.includes('flex')) {
+        if (!isTouchDevice && !document.pointerLockElement && (!debugMenu || !debugMenu.style.display.includes('flex'))) {
             document.body.requestPointerLock();
         }
     }
@@ -474,7 +499,7 @@ function gameOver(message = "COMPLIANCE FAILED") {
     }
 }
 
-// --- NEW FUNCTION TO HANDLE WINNING THE GAME ---
+// --- OBJECTIVE COMPLETED SCREEN ---
 function questComplete() {
     isGameOver = true;
     isGameWon = true; // Set the win flag
@@ -536,6 +561,18 @@ function loadSounds() {
     });
 }
 
+function safeStopMusic() {
+    if (backgroundMusic) {
+        try {
+            if (backgroundMusic.isPlaying && backgroundMusic.source) {
+                backgroundMusic.stop();
+            }
+        } catch (e) {
+            console.warn("Bypassed error during stopMusic:", e);
+        }
+    }
+}
+
 function switchMusicToLevel(levelName) {
     const levelMusicMap = {
         city: 'music_city.mp3',
@@ -547,22 +584,34 @@ function switchMusicToLevel(levelName) {
     };
     const trackToLoad = levelMusicMap[levelName] || 'music_intro.mp3';
     
-    if (backgroundMusic && backgroundMusic.isPlaying) {
-        backgroundMusic.stop();
-    }
+    safeStopMusic();
     
     const audioLoader = new THREE.AudioLoader();
     audioLoader.load(trackToLoad, 
         (buffer) => {
-            if (!backgroundMusic) {
-                backgroundMusic = new THREE.Audio(audioListener);
-            }
-            backgroundMusic.stop();
-            backgroundMusic.setBuffer(buffer);
-            backgroundMusic.setLoop(true);
-            backgroundMusic.setVolume(gameSettings.musicVolume);
-            if (hasInteracted && !isPaused) {
-                backgroundMusic.play();
+            try {
+                if (!backgroundMusic) {
+                    backgroundMusic = new THREE.Audio(audioListener);
+                }
+                safeStopMusic();
+                backgroundMusic.setBuffer(buffer);
+                backgroundMusic.setLoop(true);
+                backgroundMusic.setVolume(gameSettings.musicVolume);
+                
+                // Resume Context if suspended before triggering playback
+                if (audioListener && audioListener.context && audioListener.context.state === 'suspended') {
+                    audioListener.context.resume().then(() => {
+                        if (hasInteracted && !isPaused && !backgroundMusic.isPlaying) {
+                            backgroundMusic.play();
+                        }
+                    });
+                } else {
+                    if (hasInteracted && !isPaused && !backgroundMusic.isPlaying) {
+                        backgroundMusic.play();
+                    }
+                }
+            } catch (err) {
+                console.error("Error setting up level music buffer:", err);
             }
         },
         () => {},
@@ -570,12 +619,23 @@ function switchMusicToLevel(levelName) {
             console.warn(`Could not load level music: ${trackToLoad}. Falling back to default.`);
             if (trackToLoad !== 'music_intro.mp3') {
                 audioLoader.load('music_intro.mp3', (fallbackBuf) => {
-                    if (!backgroundMusic) backgroundMusic = new THREE.Audio(audioListener);
-                    backgroundMusic.stop();
-                    backgroundMusic.setBuffer(fallbackBuf);
-                    backgroundMusic.setLoop(true);
-                    backgroundMusic.setVolume(gameSettings.musicVolume);
-                    if (hasInteracted && !isPaused) backgroundMusic.play();
+                    try {
+                        if (!backgroundMusic) backgroundMusic = new THREE.Audio(audioListener);
+                        safeStopMusic();
+                        backgroundMusic.setBuffer(fallbackBuf);
+                        backgroundMusic.setLoop(true);
+                        backgroundMusic.setVolume(gameSettings.musicVolume);
+                        
+                        if (audioListener && audioListener.context && audioListener.context.state === 'suspended') {
+                            audioListener.context.resume().then(() => {
+                                if (hasInteracted && !isPaused && !backgroundMusic.isPlaying) backgroundMusic.play();
+                            });
+                        } else {
+                            if (hasInteracted && !isPaused && !backgroundMusic.isPlaying) backgroundMusic.play();
+                        }
+                    } catch (e) {
+                        console.error("Error setting up fallback music buffer:", e);
+                    }
                 });
             }
         }
@@ -607,7 +667,7 @@ function playSyntheticSound(name, pan = 0) {
     const volume = gameSettings.sfxVolume;
 
     if (name === 'jetpack') {
-        // Suodatettu kohinasuhina jetpackia varten
+        // Filtered noise swoosh for the jetpack
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(100, now);
         const filter = ctx.createBiquadFilter();
@@ -624,7 +684,7 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.13);
     } else if (name === 'hoverbike') {
-        // Pärisevä moottorin humina hoverbikelle
+        // Purring engine hum for the hoverbike
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(65 + Math.sin(now * 30) * 8, now);
         gain.gain.setValueAtTime(volume * 0.4, now);
@@ -632,7 +692,7 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.09);
     } else if (name === 'spacecraft') {
-        // Matala avaruusaluksen moottorihumina
+        // Low spacecraft engine hum
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(45 + Math.random() * 10, now);
         const filter = ctx.createBiquadFilter();
@@ -648,7 +708,7 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.15);
     } else if (name === 'pickup_health') {
-        // Kimmoisa nouseva piippaus
+        // Springy rising beep
         osc.type = 'sine';
         osc.frequency.setValueAtTime(320, now);
         osc.frequency.exponentialRampToValueAtTime(1100, now + 0.25);
@@ -657,7 +717,7 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.26);
     } else if (name === 'pickup_fuel_cell') {
-        // Futuristinen latautuva tuplapiippaus
+        // Futuristic charging double beep
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(580, now);
         osc.frequency.setValueAtTime(880, now + 0.08);
@@ -666,7 +726,7 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.21);
     } else if (name === 'flyer_shoot') {
-        // Korkeataajuinen laser-ääni Waspeille
+        // High-frequency laser sound for Wasps
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(800, now);
         osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
@@ -675,7 +735,7 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.16);
     } else if (name === 'shard_roller_shoot') {
-        // Kristallinen soiva snapsu Shard Rollereille
+        // Crystalline clink for Shard Rollers
         osc.type = 'sine';
         osc.frequency.setValueAtTime(1500, now);
         osc.frequency.linearRampToValueAtTime(800, now + 0.1);
@@ -684,7 +744,7 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.13);
     } else if (name === 'stingray_bomb_drop') {
-        // Pommikoneen pommin pudotuksen vihellysääni
+        // Bomber bomb drop whistle sound
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(400, now);
         osc.frequency.linearRampToValueAtTime(200, now + 0.3);
@@ -693,7 +753,7 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.31);
     } else if (name === 'lightning_shoot') {
-        // Turretin sähköisen salaman rätisevä purkausääni
+        // Turret electrical lightning crackle discharge sound
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(120, now);
         osc.frequency.setValueAtTime(250, now + 0.05);
@@ -711,7 +771,7 @@ function playSyntheticSound(name, pan = 0) {
         osc.start(now);
         osc.stop(now + 0.19);
     } else if (name === 'alien_death' || name === 'cyborg_death') {
-        // Matalataajuinen räjähdysääni vihollisten tuhoutumiselle webaudiolla
+        // Low-frequency explosion sound for enemy destruction via WebAudio
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(200, now);
         osc.frequency.exponentialRampToValueAtTime(20, now + 0.45);
@@ -769,7 +829,7 @@ function playSound(name, sourcePosition = null) {
     
     // Dynamically calculate spatial panning if camera and coordinates are available
     if (camera) {
-        // Fallback-äly sijainnin automaattiseen tunnistamiseen
+        // Spatial coordinate tracking fallback engine
         if (!sourcePosition) {
             if (name === 'cyborg_shoot') {
                 let closestCyborg = null;
