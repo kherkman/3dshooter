@@ -15,7 +15,7 @@ const gameSounds = {};
 let backgroundMusic;
 let hasInteracted = false;
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-const gameSettings = { sfxVolume: 0.4, musicVolume: 0.2, touchControlsEnabled: isTouchDevice, sbs3dEnabled: false, retroEffectEnabled: false, sbsEyeSep: 0.064 };
+const gameSettings = { sfxVolume: 0.4, musicVolume: 0.2, touchControlsEnabled: isTouchDevice, sbs3dEnabled: false, retroEffectEnabled: false, sbsEyeSep: 0.064, gyroLookEnabled: false };
 
 
 // --- GAME OBJECTS & COLLECTIONS ---
@@ -204,6 +204,8 @@ function init() {
                 if (hasInteracted) {
                     switchMusicToLevel(currentLevel);
                 }
+                // Trigger the level start notification now that the intro screen has been dismissed
+                showLevelStartNotification(currentLevel);
             }
         };
         blockerEl.addEventListener('click', handleBlockerClick, true);
@@ -230,7 +232,11 @@ function init() {
             if (audioListener && audioListener.context && audioListener.context.state === 'suspended') {
                 audioListener.context.resume();
             }
-            if (backgroundMusic && !backgroundMusic.isPlaying) {
+            
+            const blocker = document.getElementById('blocker');
+            const isIntroActive = blocker && blocker.style.display !== 'none';
+            
+            if (backgroundMusic && !backgroundMusic.isPlaying && isIntroActive) {
                 backgroundMusic.play();
             }
         }
@@ -370,15 +376,9 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     levelObjects = { ...levelData };
 
     // --- LEVEL START NOTIFICATION ---
-    const levelIndex = GameWorld.levelOrder.indexOf(levelName);
-    const levelDisplayName = GameWorld.levels[levelName].name;
-    const notificationContainer = document.getElementById('level-notification-container');
-    if (notificationContainer) {
-        notificationContainer.innerHTML = `Level ${levelIndex + 1}/6: ${levelDisplayName}`;
-        notificationContainer.classList.add('show');
-        setTimeout(() => {
-            notificationContainer.classList.remove('show');
-        }, 5000); // Display for 5 seconds
+    // Only display notification on tasonvaihto; initial load notification is delayed until blocker is closed
+    if (!isInitialLoad) {
+        showLevelStartNotification(levelName);
     }
     
     if (levelName === 'city') {
@@ -421,7 +421,7 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     if (isInitialLoad) {
         health = 500;
         score = 0;
-        isGameWon = false; // Reset the win state on a true restart.
+        isGameWon = false; // Reset win state on a true restart
     }
     lastHealth = health;
     
@@ -461,6 +461,19 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     // Dynamic level music swap (if player has already dismissed the blocker)
     if (hasInteracted) {
         switchMusicToLevel(levelName);
+    }
+}
+
+function showLevelStartNotification(levelName) {
+    const levelIndex = GameWorld.levelOrder.indexOf(levelName);
+    const levelDisplayName = GameWorld.levels[levelName].name;
+    const notificationContainer = document.getElementById('level-notification-container');
+    if (notificationContainer) {
+        notificationContainer.innerHTML = `Level ${levelIndex + 1}/6: ${levelDisplayName}`;
+        notificationContainer.classList.add('show');
+        setTimeout(() => {
+            notificationContainer.classList.remove('show');
+        }, 5000); // Display for 5 seconds
     }
 }
 
@@ -539,7 +552,12 @@ function loadSounds() {
             backgroundMusic.setBuffer(buffer);
             backgroundMusic.setLoop(true);
             backgroundMusic.setVolume(gameSettings.musicVolume);
-            if (hasInteracted && !isPaused && player.state === 'on_foot') {
+            
+            // Only auto-play if we are STILL on the intro screen
+            const blocker = document.getElementById('blocker');
+            const isIntroActive = blocker && blocker.style.display !== 'none';
+            
+            if (hasInteracted && isIntroActive) {
                 backgroundMusic.play();
             }
         },
@@ -573,6 +591,7 @@ function safeStopMusic() {
     }
 }
 
+let currentlyLoadingTrack = null;
 function switchMusicToLevel(levelName) {
     const levelMusicMap = {
         city: 'music_city.mp3',
@@ -583,6 +602,10 @@ function switchMusicToLevel(levelName) {
         crystal: 'music_crystal.mp3'
     };
     const trackToLoad = levelMusicMap[levelName] || 'music_intro.mp3';
+    
+    // Prevent double loading of the same track
+    if (currentlyLoadingTrack === trackToLoad) return;
+    currentlyLoadingTrack = trackToLoad;
     
     safeStopMusic();
     
@@ -612,10 +635,13 @@ function switchMusicToLevel(levelName) {
                 }
             } catch (err) {
                 console.error("Error setting up level music buffer:", err);
+            } finally {
+                currentlyLoadingTrack = null;
             }
         },
         () => {},
         () => {
+            currentlyLoadingTrack = null;
             console.warn(`Could not load level music: ${trackToLoad}. Falling back to default.`);
             if (trackToLoad !== 'music_intro.mp3') {
                 audioLoader.load('music_intro.mp3', (fallbackBuf) => {
