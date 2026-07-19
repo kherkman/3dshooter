@@ -360,13 +360,18 @@ function init() {
     }
 
     // Intro Background Media Handling (intro.png / intro.mp4)
-    const introBgContainer = document.createElement('div');
-    introBgContainer.id = 'intro-media-bg-container';
-    introBgContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; pointer-events: none;';
-    
     const instructions = document.getElementById('instructions');
     if (instructions) {
-        instructions.appendChild(introBgContainer);
+        // Set parent background to transparent so our custom background is visible
+        instructions.style.setProperty('background', 'transparent', 'important');
+
+        const introBgContainer = document.createElement('div');
+        introBgContainer.id = 'intro-media-bg-container';
+        // Use the original gradient as the default background of our media container
+        introBgContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; pointer-events: none; background: radial-gradient(circle, #2a0800 0%, #050100 100%);';
+        
+        // Insert as the first child to ensure it's rendered underneath other elements
+        instructions.insertBefore(introBgContainer, instructions.firstChild);
         
         let hasVideo = false;
         let hasImage = false;
