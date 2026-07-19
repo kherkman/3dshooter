@@ -616,21 +616,46 @@ function onDeviceMotion(event) {
     if (!gameSettings.gyroLookEnabled || isGameOver || isPaused || !controls.isLocked || !event.rotationRate) return;
 
     const rotationRate = event.rotationRate;
-    const sens = 0.005; // Sensitivity scale factor
-    const deadZone = 0.1; // Filter out minor natural device tremors
-
-    // Swapped Axes for Landscape Orientation:
-    // rotationRate.beta (rotation around physical X-axis, now pointing vertically) = Yaw (left/right)
-    // rotationRate.gamma (rotation around physical Y-axis, now pointing horizontally) = Pitch (up/down)
-    const yawRate = rotationRate.beta;
-    const pitchRate = rotationRate.gamma;
-
-    if (Math.abs(yawRate) > deadZone) {
-        playerObject.rotation.y += yawRate * sens;
+    
+    // Convert event interval from milliseconds to seconds (typically 16ms -> 0.016s)
+    const dt = (event.interval || 16) / 1000;
+    
+    // Determine screen orientation angle
+    let orientationAngle = 0;
+    if (screen && screen.orientation && typeof screen.orientation.angle === 'number') {
+        orientationAngle = screen.orientation.angle;
+    } else if (typeof window.orientation === 'number') {
+        orientationAngle = window.orientation;
     }
 
-    if (Math.abs(pitchRate) > deadZone) {
-        camera.rotation.x += pitchRate * sens;
+    // Adjust signs dynamically depending on landscape orientation (Landscape-Left vs Landscape-Right)
+    let signYaw = -1;
+    let signPitch = -1;
+
+    // Landscape-Left is typically 90 degrees, Landscape-Right is typically 270 or -90 degrees
+    if (orientationAngle === 90 || orientationAngle === -270) {
+        signYaw = -1;
+        signPitch = -1;
+    } else if (orientationAngle === 270 || orientationAngle === -90) {
+        signYaw = 1;
+        signPitch = 1;
+    }
+
+    // Convert degrees per second to radians per second
+    const degToRad = Math.PI / 180;
+    const yawRateRad = rotationRate.beta * degToRad;   // vertical rotation in landscape
+    const pitchRateRad = rotationRate.gamma * degToRad; // horizontal rotation in landscape
+
+    // Deadzone to filter out natural hand tremors
+    const deadZone = 0.05; // radians per second
+    const gyroSensitivity = 1.8; // Multiplier for smooth and responsive feel
+
+    if (Math.abs(yawRateRad) > deadZone) {
+        playerObject.rotation.y += yawRateRad * dt * gyroSensitivity * signYaw;
+    }
+
+    if (Math.abs(pitchRateRad) > deadZone) {
+        camera.rotation.x += pitchRateRad * dt * gyroSensitivity * signPitch;
         camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
     }
 }
@@ -879,8 +904,8 @@ function updatePlayer(delta) {
     }
 
     const lookSpeed = 1.5; // Radians per second
-    // Keyboard arrow keys for looking around are only active if touchLookEnabled is true (i.e. device motion is OFF)
-    if (gameSettings.touchLookEnabled) {
+    // Corrected condition: touch drag look is active when motion (gyro) look is OFF
+    if (!gameSettings.gyroLookEnabled) {
         if (keys['ArrowLeft']) playerObject.rotation.y += lookSpeed * delta;
         if (keys['ArrowRight']) playerObject.rotation.y -= lookSpeed * delta;
         if (keys['ArrowUp']) {
@@ -1210,7 +1235,7 @@ function exitMotorcycle() {
     playerObject.position.y = motorcycle.position.y;
     playerObject.rotation.y = motorcycle.rotation.y;
     camera.rotation.x = 0; 
-
+    
     interactables.push({
         mesh: motorcycle, radius: 5, onInteract: enterMotorcycle,
         getPrompt: () => 'Drive Hoverbike'
@@ -1230,6 +1255,9 @@ function pickUpObject(object) {
     if(orbIndex > -1) collectibles.glowingOrbs.splice(orbIndex, 1);
 }
 
+/**
+ * Pelitiedostojen latauksen jatko-osat.
+ */
 function updateCockpitSequence(delta) {
     if (!spacecraft) return;
     const data = spacecraft.userData;
