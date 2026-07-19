@@ -61,7 +61,7 @@ function setupControls() {
         }
         if (event.code === 'KeyO' || event.key === 'Escape') { toggleOptionsMenu(); return; }
         if (event.code === 'KeyJ') { toggleDebugMenu(); return; }
-        if (debugMenu && debugMenu.style.display.includes('flex') && event.code === 'KeyH') {
+        if (debugMenu && debugMenu.style && debugMenu.style.display.includes('flex') && event.code === 'KeyH') {
             player.fuelCells += 2;
             if (!player.hasJetpack) {
                 player.hasJetpack = true;
@@ -240,7 +240,8 @@ function setupControls() {
         if (typeof onWindowResize === 'function') {
             onWindowResize();
         }
-        const hasOpenOptions = document.getElementById('options-menu') && document.getElementById('options-menu').style.display.includes('flex');
+        const optionsMenu = document.getElementById('options-menu');
+        const hasOpenOptions = optionsMenu && optionsMenu.style.display.includes('flex');
         if (!document.fullscreenElement && !isPaused && !isGameOver && !hasOpenOptions) {
             document.body.requestPointerLock();
         }
@@ -403,16 +404,16 @@ function setupControls() {
             state.currentX = touch.clientX;
             state.currentY = touch.clientY;
             
-            // Only apply touch-and-drag look if gameSettings.touchLookEnabled is true
-            if (state.zone === 'look' && gameSettings.touchLookEnabled) { 
+            // Touch-and-drag look is always active in touch mode
+            if (state.zone === 'look') { 
                 const dx = state.currentX - state.startX;
                 const dy = state.currentY - state.startY;
                 const deadZone = 20;
 
-                keys['ArrowUp'] = dy < -deadZone;
-                keys['ArrowDown'] = dy > deadZone;
                 keys['ArrowLeft'] = dx < -deadZone;
                 keys['ArrowRight'] = dx > deadZone;
+                keys['ArrowUp'] = dy < -deadZone;
+                keys['ArrowDown'] = dy > deadZone;
             }
         }
     };
@@ -557,17 +558,15 @@ function setupControls() {
         toggleTouchButton.addEventListener('touchend', (e) => { e.preventDefault(); toggleTouchControlsEnabled(); });
     }
 
-    // New button for toggling touch look
+    // Toggle button for Device Motion (Gyro) Look
     const toggleTouchLookButton = document.getElementById('toggle-touch-look-button');
     if (toggleTouchLookButton) {
-        // Ensure touch look is OFF by default for device motion control
-        if (typeof gameSettings.touchLookEnabled === 'undefined') {
-            gameSettings.touchLookEnabled = false; 
+        if (typeof gameSettings.gyroLookEnabled === 'undefined') {
+            gameSettings.gyroLookEnabled = false; 
         }
         toggleTouchLookButton.addEventListener('click', toggleTouchLookEnabled);
         toggleTouchLookButton.addEventListener('touchend', (e) => { e.preventDefault(); toggleTouchLookEnabled(); });
-        // Initialize button text based on current setting
-        toggleTouchLookButton.textContent = `Touch Look: ${gameSettings.touchLookEnabled ? 'ON' : 'OFF'}`;
+        toggleTouchLookButton.textContent = `Motion Look: ${gameSettings.gyroLookEnabled ? 'ON' : 'OFF'}`;
     }
     
     const exitVehicleButton = document.getElementById('exit-vehicle-button');
@@ -590,24 +589,27 @@ function setupControls() {
     });
 }
 
-// New function for device motion handling
+// Device motion handling adapted for horizontal/vertical landscape coordinates
 function onDeviceMotion(event) {
-    // Only apply if touch-and-drag look is OFF, game is active, and rotation rate data is available
-    if (gameSettings.touchLookEnabled || isGameOver || isPaused || !controls.isLocked || !event.rotationRate) return;
+    // Only apply if gyroLookEnabled is true and game is active
+    if (!gameSettings.gyroLookEnabled || isGameOver || isPaused || !controls.isLocked || !event.rotationRate) return;
 
     const rotationRate = event.rotationRate;
-    const sens = 0.005; // Adjust sensitivity
-    const deadZone = 0.1; // Prevent drift from minor device tremors
+    const sens = 0.005; // Sensitivity scale factor
+    const deadZone = 0.1; // Filter out minor natural device tremors
 
-    // Yaw (left/right) from gamma (Z-axis rotation, typically rotation around device's screen normal)
-    if (Math.abs(rotationRate.gamma) > deadZone) {
-        // Tilting right looks right
-        playerObject.rotation.y -= rotationRate.gamma * sens;
+    // Swapped Axes for Landscape Orientation:
+    // rotationRate.beta (rotation around physical X-axis, now pointing vertically) = Yaw (left/right)
+    // rotationRate.gamma (rotation around physical Y-axis, now pointing horizontally) = Pitch (up/down)
+    const yawRate = rotationRate.beta;
+    const pitchRate = rotationRate.gamma;
+
+    if (Math.abs(yawRate) > deadZone) {
+        playerObject.rotation.y += yawRate * sens;
     }
 
-    // Pitch (up/down) from beta (X-axis rotation, typically tilting forward/backward)
-    if (Math.abs(rotationRate.beta) > deadZone) {
-        camera.rotation.x -= rotationRate.beta * sens;
+    if (Math.abs(pitchRate) > deadZone) {
+        camera.rotation.x += pitchRate * sens;
         camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
     }
 }
@@ -685,12 +687,12 @@ function toggleTouchControlsEnabled() {
 }
 
 function toggleTouchLookEnabled() {
-    gameSettings.touchLookEnabled = !gameSettings.touchLookEnabled;
+    gameSettings.gyroLookEnabled = !gameSettings.gyroLookEnabled;
     const button = document.getElementById('toggle-touch-look-button');
     if (button) {
-        button.textContent = `Touch Look: ${gameSettings.touchLookEnabled ? 'ON' : 'OFF'}`;
+        button.textContent = `Motion Look: ${gameSettings.gyroLookEnabled ? 'ON' : 'OFF'}`;
     }
-    console.log(`Touch look set to: ${gameSettings.touchLookEnabled}`);
+    console.log(`Gyro motion look set to: ${gameSettings.gyroLookEnabled}`);
 }
 
 function toggleGoggles() {
