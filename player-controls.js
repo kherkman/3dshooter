@@ -7,7 +7,7 @@
 // --- TOUCH & GAMEPAD CONTROLS STATE ---
 const touchState = {}; // Keyed by touch identifier
 let gamepad = null;
-let hasRequestedDeviceOrientationPermission = false; // New global variable for device motion permission
+let hasRequestedDeviceOrientationPermission = false; // Global variable for device motion permission
 
 function setupControls() {
     const mapContainer = document.getElementById('map-container');
@@ -66,7 +66,8 @@ function setupControls() {
             if (!player.hasJetpack) {
                 player.hasJetpack = true;
                 player.jetpackFuel = player.maxJetpackFuel;
-                document.getElementById('jetpack-hud-container').style.display = 'flex';
+                const jetpackContainer = document.getElementById('jetpack-hud-container');
+                if (jetpackContainer) jetpackContainer.style.display = 'flex';
             }
             if (!player.hasXRayGoggles) {
                 player.hasXRayGoggles = true;
@@ -75,7 +76,8 @@ function setupControls() {
             for(let i = 0; i < GameData.weapons.length; i++) {
                 if (!player.unlockedWeapons[i]) {
                     player.unlockedWeapons[i] = true;
-                    document.getElementById(`weapon-sprite-${i}`).style.display = 'block';
+                    const weaponSprite = document.getElementById(`weapon-sprite-${i}`);
+                    if (weaponSprite) weaponSprite.style.display = 'block';
                 }
             }
             player.ammo.shotgun += 50; player.ammo.machinegun += 400; player.ammo.rocket += 20; player.ammo.plasma += 200; player.ammo.grenade += 10; player.ammo.sniper += 20; player.ammo.blackhole += 5;
@@ -100,11 +102,16 @@ function setupControls() {
             keys[event.code] = true; 
         }
         if(player.state === 'on_foot' && (event.code === 'KeyQ' || event.code === 'KeyE')) changeWeapon(event.code === 'KeyE' ? 1 : -1);
-        if(event.code === 'Tab') { event.preventDefault(); mapContainer.style.display = 'flex'; }
+        if(event.code === 'Tab') { 
+            event.preventDefault(); 
+            if (mapContainer) mapContainer.style.display = 'flex'; 
+        }
     };
     const onKeyUp = (event) => {
         keys[event.code] = false;
-        if(event.code === 'Tab') mapContainer.style.display = 'none';
+        if(event.code === 'Tab') {
+            if (mapContainer) mapContainer.style.display = 'none';
+        }
         if(event.code === 'KeyF') fKeyPressed = false;
         if(event.code === 'KeyB') keys['KeyB'] = false;
     };
@@ -113,13 +120,23 @@ function setupControls() {
         if (document.pointerLockElement === document.body) {
             controls.isLocked = true;
             isPaused = false;
-            document.getElementById('options-menu').style.display = 'none';
-            document.getElementById('inventory-menu').style.display = 'none';
-            document.getElementById('blocker').style.display = 'none';
+            
+            const optionsMenu = document.getElementById('options-menu');
+            const inventoryMenuEl = document.getElementById('inventory-menu');
+            const blocker = document.getElementById('blocker');
+            
+            if (optionsMenu) optionsMenu.style.display = 'none';
+            if (inventoryMenuEl) inventoryMenuEl.style.display = 'none';
+            if (blocker) blocker.style.display = 'none';
         } else {
             controls.isLocked = false;
-            if (!isGameOver && !inventoryMenu.style.display.includes('flex') && !debugMenu.style.display.includes('flex')) {
-                document.getElementById('options-menu').style.display = 'flex';
+            
+            const hasOpenInventory = inventoryMenu && inventoryMenu.style && inventoryMenu.style.display.includes('flex');
+            const hasOpenDebug = debugMenu && debugMenu.style && debugMenu.style.display.includes('flex');
+            
+            if (!isGameOver && !hasOpenInventory && !hasOpenDebug) {
+                const optionsMenu = document.getElementById('options-menu');
+                if (optionsMenu) optionsMenu.style.display = 'flex';
             }
         }
     });
@@ -159,16 +176,21 @@ function setupControls() {
             switchMusicToLevel(currentLevel);
         }
     };
-    document.getElementById('blocker').addEventListener('click', (e) => onBlockerInteract(e));
-    document.getElementById('blocker').addEventListener('touchend', (e) => {
-        // Allow touch events on buttons within the blocker overlay to be processed
-        onBlockerInteract(e);
-    });
+    
+    const blockerEl = document.getElementById('blocker');
+    if (blockerEl) {
+        blockerEl.addEventListener('click', (e) => onBlockerInteract(e));
+        blockerEl.addEventListener('touchend', (e) => {
+            // Allow touch events on buttons within the blocker overlay to be processed
+            onBlockerInteract(e);
+        });
+    }
 
     const closeIntroButton = document.getElementById('close-intro');
     const closeIntroHandler = (e) => {
         e.stopPropagation();
-        document.getElementById('blocker').style.display = 'none';
+        const blocker = document.getElementById('blocker');
+        if (blocker) blocker.style.display = 'none';
     };
     if (closeIntroButton) {
         closeIntroButton.addEventListener('click', closeIntroHandler);
@@ -176,46 +198,64 @@ function setupControls() {
     }
 
     const closeOptions = () => toggleOptionsMenu(false);
-    document.getElementById('close-options').addEventListener('click', closeOptions);
-    document.getElementById('close-options').addEventListener('touchend', closeOptions);
+    const closeOptionsBtn = document.getElementById('close-options');
+    if (closeOptionsBtn) {
+        closeOptionsBtn.addEventListener('click', closeOptions);
+        closeOptionsBtn.addEventListener('touchend', closeOptions);
+    }
 
     const restartFromOptions = () => { isPaused = false; restartGame(); };
-    document.getElementById('restart-button-options').addEventListener('click', restartFromOptions);
-    document.getElementById('restart-button-options').addEventListener('touchend', restartFromOptions);
+    const restartBtnOptions = document.getElementById('restart-button-options');
+    if (restartBtnOptions) {
+        restartBtnOptions.addEventListener('click', restartFromOptions);
+        restartBtnOptions.addEventListener('touchend', restartFromOptions);
+    }
 
-    document.getElementById('fullscreen-button').addEventListener('click', () => {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-            });
-        } else {
-            document.exitFullscreen();
-        }
-        toggleOptionsMenu(false);
-    });
-    document.getElementById('fullscreen-button').addEventListener('touchend', (e) => { // Added for touch support
-        e.preventDefault(); 
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-            });
-        } else {
-            document.exitFullscreen();
-        }
-        toggleOptionsMenu(false);
-    });
+    const fullscreenBtn = document.getElementById('fullscreen-button');
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+            toggleOptionsMenu(false);
+        });
+        fullscreenBtn.addEventListener('touchend', (e) => {
+            e.preventDefault(); 
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+            toggleOptionsMenu(false);
+        });
+    }
     
     document.addEventListener('fullscreenchange', () => {
         if (typeof onWindowResize === 'function') {
             onWindowResize();
         }
-        if (!document.fullscreenElement && !isPaused && !isGameOver) {
+        const hasOpenOptions = document.getElementById('options-menu') && document.getElementById('options-menu').style.display.includes('flex');
+        if (!document.fullscreenElement && !isPaused && !isGameOver && !hasOpenOptions) {
             document.body.requestPointerLock();
         }
     });
 
-    const sfxSlider = document.getElementById('sfx-volume'); sfxSlider.value = gameSettings.sfxVolume; sfxSlider.addEventListener('input', (e) => { gameSettings.sfxVolume = parseFloat(e.target.value); });
-    const musicSlider = document.getElementById('music-volume'); musicSlider.value = gameSettings.musicVolume; musicSlider.addEventListener('input', (e) => { gameSettings.musicVolume = parseFloat(e.target.value); if(backgroundMusic) backgroundMusic.setVolume(gameSettings.musicVolume); });
+    const sfxSlider = document.getElementById('sfx-volume'); 
+    if (sfxSlider) {
+        sfxSlider.value = gameSettings.sfxVolume; 
+        sfxSlider.addEventListener('input', (e) => { gameSettings.sfxVolume = parseFloat(e.target.value); });
+    }
+    const musicSlider = document.getElementById('music-volume'); 
+    if (musicSlider) {
+        musicSlider.value = gameSettings.musicVolume; 
+        musicSlider.addEventListener('input', (e) => { gameSettings.musicVolume = parseFloat(e.target.value); if(backgroundMusic) backgroundMusic.setVolume(gameSettings.musicVolume); });
+    }
     
     const sbsSeparationSlider = document.getElementById('sbs-separation');
     if (sbsSeparationSlider) {
@@ -226,30 +266,36 @@ function setupControls() {
     }
 
     const sbs3dButton = document.getElementById('sbs-3d-button');
-    sbs3dButton.addEventListener('click', () => {
-        gameSettings.sbs3dEnabled = !gameSettings.sbs3dEnabled;
-        sbs3dButton.textContent = `Side-by-Side 3D: ${gameSettings.sbs3dEnabled ? 'ON' : 'OFF'}`;
-        onWindowResize(); 
-    });
-    sbs3dButton.addEventListener('touchend', (e) => { // Added for touch support
-        e.preventDefault();
-        gameSettings.sbs3dEnabled = !gameSettings.sbs3dEnabled;
-        sbs3dButton.textContent = `Side-by-Side 3D: ${gameSettings.sbs3dEnabled ? 'ON' : 'OFF'}`;
-        onWindowResize(); 
-    });
+    if (sbs3dButton) {
+        sbs3dButton.addEventListener('click', () => {
+            gameSettings.sbs3dEnabled = !gameSettings.sbs3dEnabled;
+            sbs3dButton.textContent = `Side-by-Side 3D: ${gameSettings.sbs3dEnabled ? 'ON' : 'OFF'}`;
+            onWindowResize(); 
+        });
+        sbs3dButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            gameSettings.sbs3dEnabled = !gameSettings.sbs3dEnabled;
+            sbs3dButton.textContent = `Side-by-Side 3D: ${gameSettings.sbs3dEnabled ? 'ON' : 'OFF'}`;
+            onWindowResize(); 
+        });
+    }
     
     const retroEffectButton = document.getElementById('retro-effect-button');
-    retroEffectButton.addEventListener('click', () => {
-        gameSettings.retroEffectEnabled = !gameSettings.retroEffectEnabled;
-        retroEffectButton.textContent = `Retro Effect: ${gameSettings.retroEffectEnabled ? 'ON' : 'OFF'}`;
-        document.getElementById('retro-overlay').classList.toggle('active', gameSettings.retroEffectEnabled);
-    });
-    retroEffectButton.addEventListener('touchend', (e) => { // Added for touch support
-        e.preventDefault();
-        gameSettings.retroEffectEnabled = !gameSettings.retroEffectEnabled;
-        retroEffectButton.textContent = `Retro Effect: ${gameSettings.retroEffectEnabled ? 'ON' : 'OFF'}`;
-        document.getElementById('retro-overlay').classList.toggle('active', gameSettings.retroEffectEnabled);
-    });
+    if (retroEffectButton) {
+        retroEffectButton.addEventListener('click', () => {
+            gameSettings.retroEffectEnabled = !gameSettings.retroEffectEnabled;
+            retroEffectButton.textContent = `Retro Effect: ${gameSettings.retroEffectEnabled ? 'ON' : 'OFF'}`;
+            const retroOverlay = document.getElementById('retro-overlay');
+            if (retroOverlay) retroOverlay.classList.toggle('active', gameSettings.retroEffectEnabled);
+        });
+        retroEffectButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            gameSettings.retroEffectEnabled = !gameSettings.retroEffectEnabled;
+            retroEffectButton.textContent = `Retro Effect: ${gameSettings.retroEffectEnabled ? 'ON' : 'OFF'}`;
+            const retroOverlay = document.getElementById('retro-overlay');
+            if (retroOverlay) retroOverlay.classList.toggle('active', gameSettings.retroEffectEnabled);
+        });
+    }
 
     const handleInventoryInteraction = (e) => {
         e.preventDefault();
@@ -272,10 +318,15 @@ function setupControls() {
             }
         }
     };
-    inventoryMenu.addEventListener('click', handleInventoryInteraction);
-    inventoryMenu.addEventListener('touchend', handleInventoryInteraction);
-    document.getElementById('close-inventory').addEventListener('click', toggleInventoryMenu);
-    document.getElementById('close-inventory').addEventListener('touchend', toggleInventoryMenu);
+    if (inventoryMenu) {
+        inventoryMenu.addEventListener('click', handleInventoryInteraction);
+        inventoryMenu.addEventListener('touchend', handleInventoryInteraction);
+    }
+    const closeInventoryBtn = document.getElementById('close-inventory');
+    if (closeInventoryBtn) {
+        closeInventoryBtn.addEventListener('click', toggleInventoryMenu);
+        closeInventoryBtn.addEventListener('touchend', toggleInventoryMenu);
+    }
 
     // Link the "Options" button inside the Inventory Window to toggle menu views
     const optionsBtnInv = document.getElementById('options-button-inventory');
@@ -294,7 +345,8 @@ function setupControls() {
         if (isGameOver || isPaused || !gameSettings.touchControlsEnabled) return;
         event.preventDefault();
 
-        const hudHeight = document.getElementById('doom-hud').clientHeight;
+        const doomHud = document.getElementById('doom-hud');
+        const hudHeight = doomHud ? doomHud.clientHeight : 120;
 
         for (const touch of event.changedTouches) {
             if (touch.clientY > window.innerHeight - hudHeight) continue;
@@ -328,7 +380,7 @@ function setupControls() {
                     keys['Space'] = true;
                 } 
                 else {
-                    // This area now simulates a 'b' key press for shooting
+                    // This area simulates a 'b' key press for shooting
                     if (!keys['KeyB']) {
                         keys['KeyB'] = true;
                         if (player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) {
@@ -393,81 +445,116 @@ function setupControls() {
         window.addEventListener('devicemotion', onDeviceMotion, false);
     }
 
-    controls = { isLocked: false }; document.addEventListener('mousemove', onMouseMove, false); document.addEventListener('keydown', onKeyDown); document.addEventListener('keyup', onKeyUp); document.addEventListener('wheel', onMouseWheel, { passive: false }); document.addEventListener('mousedown', () => { if(controls.isLocked) mouse.isDown = true; }); document.addEventListener('mouseup', () => mouse.isDown = false); document.addEventListener('click', () => { if (controls.isLocked && !isGameOver && !isPaused && player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) shoot(); });
+    controls = { isLocked: false }; 
+    document.addEventListener('mousemove', onMouseMove, false); 
+    document.addEventListener('keydown', onKeyDown); 
+    document.addEventListener('keyup', onKeyUp); 
+    document.addEventListener('wheel', onMouseWheel, { passive: false }); 
+    document.addEventListener('mousedown', () => { if(controls.isLocked) mouse.isDown = true; }); 
+    document.addEventListener('mouseup', () => mouse.isDown = false); 
+    document.addEventListener('click', () => { if (controls.isLocked && !isGameOver && !isPaused && player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) shoot(); });
     
     const inventoryButton = document.getElementById('inventory-button-hud');
-    inventoryButton.addEventListener('click', toggleInventoryMenu);
-    inventoryButton.addEventListener('touchstart', (e) => { e.preventDefault(); toggleInventoryMenu(); });
+    if (inventoryButton) {
+        inventoryButton.addEventListener('click', toggleInventoryMenu);
+        inventoryButton.addEventListener('touchstart', (e) => { e.preventDefault(); toggleInventoryMenu(); });
+    }
 
     const gogglesButton = document.getElementById('goggles-hud-container');
-    gogglesButton.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        toggleGoggles();
-        updateHUD();
-    });
+    if (gogglesButton) {
+        gogglesButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            toggleGoggles();
+            updateHUD();
+        });
+    }
 
     const weaponPrevButton = document.getElementById('weapon-prev-hud');
-    weaponPrevButton.addEventListener('touchstart', (e) => { e.preventDefault(); changeWeapon(-1); });
+    if (weaponPrevButton) {
+        weaponPrevButton.addEventListener('touchstart', (e) => { e.preventDefault(); changeWeapon(-1); });
+    }
     const weaponNextButton = document.getElementById('weapon-next-hud');
-    weaponNextButton.addEventListener('touchstart', (e) => { e.preventDefault(); changeWeapon(1); });
+    if (weaponNextButton) {
+        weaponNextButton.addEventListener('touchstart', (e) => { e.preventDefault(); changeWeapon(1); });
+    }
 
     const weaponDisplay = document.getElementById('weapon-display-container');
-    const handleWeaponPress = (e) => {
-        if (e.target.classList.contains('hud-button')) return;
-        e.preventDefault();
-        if (e.type.includes('mouse')) {
-            mouse.isDown = true;
-        } else if (e.type.includes('touch')) {
-            if (!keys['KeyB']) {
-                keys['KeyB'] = true;
-                if (player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) {
-                    shoot();
+    if (weaponDisplay) {
+        const handleWeaponPress = (e) => {
+            if (e.target.classList.contains('hud-button')) return;
+            e.preventDefault();
+            if (e.type.includes('mouse')) {
+                mouse.isDown = true;
+            } else if (e.type.includes('touch')) {
+                if (!keys['KeyB']) {
+                    keys['KeyB'] = true;
+                    if (player.state === 'on_foot' && !['Machine Gun', 'Plasma Gun'].includes(GameData.weapons[player.currentWeaponIndex].name) && !player.carriedObject) {
+                        shoot();
+                    }
                 }
             }
-        }
-    };
-    const handleWeaponRelease = (e) => {
-        if (e.target.classList.contains('hud-button')) return;
-        e.preventDefault();
-        if (e.type.includes('mouse')) {
-            mouse.isDown = false;
-        } else if (e.type.includes('touch')) {
-            keys['KeyB'] = false;
-        }
-    };
-    weaponDisplay.addEventListener('mousedown', handleWeaponPress);
-    weaponDisplay.addEventListener('touchstart', handleWeaponPress);
-    weaponDisplay.addEventListener('mouseup', handleWeaponRelease);
-    weaponDisplay.addEventListener('touchend', handleWeaponRelease);
-    weaponDisplay.addEventListener('mouseleave', handleWeaponRelease);
-    weaponDisplay.addEventListener('touchcancel', handleWeaponRelease);
-    weaponDisplay.addEventListener('click', (e) => {
-        e.stopPropagation();
-    });
+        };
+        const handleWeaponRelease = (e) => {
+            if (e.target.classList.contains('hud-button')) return;
+            e.preventDefault();
+            if (e.type.includes('mouse')) {
+                mouse.isDown = false;
+            } else if (e.type.includes('touch')) {
+                keys['KeyB'] = false;
+            }
+        };
+        weaponDisplay.addEventListener('mousedown', handleWeaponPress);
+        weaponDisplay.addEventListener('touchstart', handleWeaponPress);
+        weaponDisplay.addEventListener('mouseup', handleWeaponRelease);
+        weaponDisplay.addEventListener('touchend', handleWeaponRelease);
+        weaponDisplay.addEventListener('mouseleave', handleWeaponRelease);
+        weaponDisplay.addEventListener('touchcancel', handleWeaponRelease);
+        weaponDisplay.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
 
     const interactionPromptElement = document.getElementById('interaction-prompt');
-    const handleInteractionPromptTouch = (e) => {
-        e.preventDefault();
-        keys['KeyF'] = true;
-        fKeyPressed = true;
-        setTimeout(() => { keys['KeyF'] = false; fKeyPressed = false; }, 100);
+    if (interactionPromptElement) {
+        const handleInteractionPromptTouch = (e) => {
+            e.preventDefault();
+            keys['KeyF'] = true;
+            fKeyPressed = true;
+            setTimeout(() => { keys['KeyF'] = false; fKeyPressed = false; }, 100);
+        };
+        interactionPromptElement.addEventListener('touchstart', handleInteractionPromptTouch);
+    }
+
+    const showTouchControls = () => { 
+        const touchMenu = document.getElementById('touch-controls-menu');
+        if (touchMenu) touchMenu.style.display = 'flex'; 
     };
-    interactionPromptElement.addEventListener('touchstart', handleInteractionPromptTouch);
+    
+    const showTouchControlsIntro = document.getElementById('show-touch-controls-intro');
+    if (showTouchControlsIntro) {
+        showTouchControlsIntro.addEventListener('click', showTouchControls);
+        showTouchControlsIntro.addEventListener('touchend', showTouchControls);
+    }
+    const showTouchControlsOptions = document.getElementById('show-touch-controls-options');
+    if (showTouchControlsOptions) {
+        showTouchControlsOptions.addEventListener('click', showTouchControls);
+        showTouchControlsOptions.addEventListener('touchend', showTouchControls);
+    }
 
-    const showTouchControls = () => { document.getElementById('touch-controls-menu').style.display = 'flex'; };
-    document.getElementById('show-touch-controls-intro').addEventListener('click', showTouchControls);
-    document.getElementById('show-touch-controls-intro').addEventListener('touchend', showTouchControls);
-    document.getElementById('show-touch-controls-options').addEventListener('click', showTouchControls);
-    document.getElementById('show-touch-controls-options').addEventListener('touchend', showTouchControls);
-
-    const closeTouchControls = () => { document.getElementById('touch-controls-menu').style.display = 'none'; };
-    document.getElementById('close-touch-controls').addEventListener('click', closeTouchControls);
-    document.getElementById('close-touch-controls').addEventListener('touchend', closeTouchControls);
+    const closeTouchControls = () => { 
+        const touchMenu = document.getElementById('touch-controls-menu');
+        if (touchMenu) touchMenu.style.display = 'none'; 
+    };
+    const closeTouchControlsBtn = document.getElementById('close-touch-controls');
+    if (closeTouchControlsBtn) {
+        closeTouchControlsBtn.addEventListener('click', closeTouchControls);
+        closeTouchControlsBtn.addEventListener('touchend', closeTouchControls);
+    }
     
     const toggleTouchButton = document.getElementById('toggle-touch-button');
     if (toggleTouchButton) {
         toggleTouchButton.addEventListener('click', toggleTouchControlsEnabled);
-        toggleTouchButton.addEventListener('touchend', (e) => { e.preventDefault(); toggleTouchControlsEnabled(); }); // Added for touch support
+        toggleTouchButton.addEventListener('touchend', (e) => { e.preventDefault(); toggleTouchControlsEnabled(); });
     }
 
     // New button for toggling touch look
@@ -478,17 +565,19 @@ function setupControls() {
             gameSettings.touchLookEnabled = false; 
         }
         toggleTouchLookButton.addEventListener('click', toggleTouchLookEnabled);
-        toggleTouchLookButton.addEventListener('touchend', (e) => { e.preventDefault(); toggleTouchLookEnabled(); }); // Added for touch support
+        toggleTouchLookButton.addEventListener('touchend', (e) => { e.preventDefault(); toggleTouchLookEnabled(); });
         // Initialize button text based on current setting
         toggleTouchLookButton.textContent = `Touch Look: ${gameSettings.touchLookEnabled ? 'ON' : 'OFF'}`;
     }
     
     const exitVehicleButton = document.getElementById('exit-vehicle-button');
-    exitVehicleButton.addEventListener('click', exitMotorcycle);
-    exitVehicleButton.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        exitMotorcycle();
-    });
+    if (exitVehicleButton) {
+        exitVehicleButton.addEventListener('click', exitMotorcycle);
+        exitVehicleButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            exitMotorcycle();
+        });
+    }
 
     window.addEventListener('gamepadconnected', (event) => {
         console.log('Gamepad connected:', event.gamepad.id);
@@ -512,7 +601,7 @@ function onDeviceMotion(event) {
 
     // Yaw (left/right) from gamma (Z-axis rotation, typically rotation around device's screen normal)
     if (Math.abs(rotationRate.gamma) > deadZone) {
-        // Negate gamma for intuitive control (tilting right should look right)
+        // Tilting right looks right
         playerObject.rotation.y -= rotationRate.gamma * sens;
     }
 
@@ -619,31 +708,38 @@ function toggleGoggles() {
 
 function toggleOptionsMenu(forceOpen = null) {
     const optionsMenu = document.getElementById('options-menu');
-    const isCurrentlyOpen = optionsMenu.style.display.includes('flex');
+    const isCurrentlyOpen = optionsMenu && optionsMenu.style.display.includes('flex');
     const shouldBeOpen = forceOpen !== null ? forceOpen : !isCurrentlyOpen;
 
     if (shouldBeOpen) {
         document.exitPointerLock();
-        optionsMenu.style.display = 'flex';
+        if (optionsMenu) optionsMenu.style.display = 'flex';
     } else {
-        optionsMenu.style.display = 'none';
-        if (!inventoryMenu.style.display.includes('flex') && !debugMenu.style.display.includes('flex') && !isGameOver) {
+        if (optionsMenu) optionsMenu.style.display = 'none';
+        
+        const hasOpenInventory = inventoryMenu && inventoryMenu.style && inventoryMenu.style.display.includes('flex');
+        const hasOpenDebug = debugMenu && debugMenu.style && debugMenu.style.display.includes('flex');
+        
+        if (!hasOpenInventory && !hasOpenDebug && !isGameOver) {
             document.body.requestPointerLock();
         }
     }
 }
 
 function toggleInventoryMenu() {
-    const isOpening = inventoryMenu.style.display !== 'flex';
+    const isOpening = inventoryMenu && inventoryMenu.style && inventoryMenu.style.display !== 'flex';
     if (isOpening) {
         updateInventoryMenu();
         isPaused = true;
-        inventoryMenu.style.display = 'flex';
+        if (inventoryMenu) inventoryMenu.style.display = 'flex';
         document.exitPointerLock();
     } else {
-        inventoryMenu.style.display = 'none';
+        if (inventoryMenu) inventoryMenu.style.display = 'none';
         isPaused = false;
-        if (!isGameOver && !document.getElementById('options-menu').style.display.includes('flex')) {
+        
+        const hasOpenOptions = document.getElementById('options-menu') && document.getElementById('options-menu').style.display.includes('flex');
+        
+        if (!isGameOver && !hasOpenOptions) {
             document.body.requestPointerLock();
         }
     }
@@ -664,7 +760,7 @@ function setActiveWeapon(index) {
         oldSprite.style.display = 'none';
     }
     
-    gunModels[player.currentWeaponIndex].visible = false;
+    if (gunModels[player.currentWeaponIndex]) gunModels[player.currentWeaponIndex].visible = false;
     player.currentWeaponIndex = index;
     
     const newSprite = document.getElementById(`weapon-sprite-${index}`);
@@ -673,7 +769,7 @@ function setActiveWeapon(index) {
         newSprite.style.display = 'block';
     }
     
-    gunModels[index].visible = true;
+    if (gunModels[index]) gunModels[index].visible = true;
     updateHUD();
 }
 
@@ -958,7 +1054,7 @@ function updatePlayerVehicle(delta) {
         bikeData.onGround = true;
     }
     
-    // Lock the player to the bike's position and rotation, maintaining the forward-facing offset
+    // Lock driver position to vehicle
     const driverPos = motorcycle.position.clone().add(new THREE.Vector3(0, GameWorld.player.height - 0.5, 0));
     playerObject.position.copy(driverPos);
     playerObject.quaternion.setFromEuler(new THREE.Euler(0, motorcycle.rotation.y + Math.PI, 0));
@@ -981,13 +1077,15 @@ function throwCarriedObject() {
     player.carriedObject = null;
     player.weaponCooldown = 0.5;
     
-    gunModels[player.currentWeaponIndex].visible = true;
+    if (gunModels[player.currentWeaponIndex]) gunModels[player.currentWeaponIndex].visible = true;
 }
 
 
 function updateInteractions() {
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     const interactionPromptElement = document.getElementById('interaction-prompt');
+
+    if (!interactionPromptElement) return;
 
     if ((!controls.isLocked && !isTouchDevice && !gamepad) || player.state !== 'on_foot') {
         interactionPromptElement.style.display = 'none';
@@ -1040,16 +1138,23 @@ function enterSpacecraft() {
     if (player.fuelCells < 2 || player.state !== 'on_foot') return;
     
     player.state = 'entering_spacecraft';
-    document.getElementById('doom-hud').style.display = 'none';
-    document.getElementById('crosshair').style.display = 'none';
-    document.getElementById('interaction-prompt').style.display = 'none';
-    cockpitOverlayElement.style.display = 'block';
-    spacecraft.visible = false;
-    gunModels.forEach(g => g.visible = false);
+    
+    const doomHud = document.getElementById('doom-hud');
+    const crosshair = document.getElementById('crosshair');
+    const prompt = document.getElementById('interaction-prompt');
+    
+    if (doomHud) doomHud.style.display = 'none';
+    if (crosshair) crosshair.style.display = 'none';
+    if (prompt) prompt.style.display = 'none';
+    
+    if (cockpitOverlayElement) cockpitOverlayElement.style.display = 'block';
+    if (spacecraft) spacecraft.visible = false;
+    
+    gunModels.forEach(g => { if (g) g.visible = false; });
     if(player.carriedObject) scene.remove(player.carriedObject);
     player.carriedObject = null;
-    cockpitJoystick.visible = true;
-    cockpitHexHUD.visible = true;
+    if (cockpitJoystick) cockpitJoystick.visible = true;
+    if (cockpitHexHUD) cockpitHexHUD.visible = true;
     playerObject.quaternion.copy(spacecraft.quaternion);
     spacecraft.userData.animationProgress = 0;
 }
@@ -1057,7 +1162,7 @@ function enterSpacecraft() {
 function enterMotorcycle() {
     if (player.state !== 'on_foot' || player.carriedObject) return;
     player.state = 'driving_motorcycle';
-    gunModels.forEach(g => g.visible = false);
+    gunModels.forEach(g => { if (g) g.visible = false; });
     const index = interactables.findIndex(i => i.mesh === motorcycle);
     if (index > -1) interactables.splice(index, 1);
     
@@ -1069,8 +1174,8 @@ function enterMotorcycle() {
 function exitMotorcycle() {
     if (player.state !== 'driving_motorcycle') return;
     player.state = 'on_foot';
-    motorcycle.visible = true;
-    gunModels[player.currentWeaponIndex].visible = true;
+    if (motorcycle) motorcycle.visible = true;
+    if (gunModels[player.currentWeaponIndex]) gunModels[player.currentWeaponIndex].visible = true;
     const sideOffset = new THREE.Vector3(1, 0, 0).applyQuaternion(motorcycle.quaternion);
     playerObject.position.copy(motorcycle.position).add(sideOffset.multiplyScalar(3));
     playerObject.position.y = motorcycle.position.y;
@@ -1087,7 +1192,7 @@ function pickUpObject(object) {
     if (player.carriedObject || player.state !== 'on_foot') return;
     player.carriedObject = object;
     object.userData.name = GameData.items[object.userData.key].name;
-    gunModels[player.currentWeaponIndex].visible = false;
+    if (gunModels[player.currentWeaponIndex]) gunModels[player.currentWeaponIndex].visible = false;
     
     const index = interactables.findIndex(i => i.mesh === object);
     if (index > -1) interactables.splice(index, 1);
@@ -1105,11 +1210,11 @@ function updateCockpitSequence(delta) {
     const takeoffSpeed = 50.0 * (progress * progress);
     spacecraft.position.y += takeoffSpeed * delta;
     playerObject.position.copy(spacecraft.position).add(new THREE.Vector3(0, GameWorld.player.height, 0));
-    cockpitJoystick.rotation.x = 0.3 + Math.sin(clock.getElapsedTime() * 2) * 0.05;
+    if (cockpitJoystick) cockpitJoystick.rotation.x = 0.3 + Math.sin(clock.getElapsedTime() * 2) * 0.05;
     if (spacecraft.position.y > 250) {
         player.state = 'hyperspace';
         hyperspaceData.time = 0;
-        starfield.visible = true;
+        if (starfield) starfield.visible = true;
     }
 }
 
@@ -1122,20 +1227,21 @@ function updateHyperspace(delta) {
     if (scene.fog) scene.fog.color.lerpColors(fromColor, blackColor, fadeProgress);
     scene.background.lerpColors(fromColor, blackColor, fadeProgress);
     
-    const positions = starfield.geometry.attributes.position.array;
-    for (let i = 0; i < positions.length; i += 3) {
-        positions[i + 2] += delta * 400;
-        if (positions[i + 2] > camera.near) {
-            positions[i] = (Math.random() - 0.5) * 1000;
-            positions[i+1] = (Math.random() - 0.5) * 1000;
-            positions[i + 2] = -1000;
+    if (starfield) {
+        const positions = starfield.geometry.attributes.position.array;
+        for (let i = 0; i < positions.length; i += 3) {
+            positions[i + 2] += delta * 400;
+            if (positions[i + 2] > camera.near) {
+                positions[i] = (Math.random() - 0.5) * 1000;
+                positions[i+1] = (Math.random() - 0.5) * 1000;
+                positions[i + 2] = -1000;
+            }
         }
+        starfield.geometry.attributes.position.needsUpdate = true;
     }
-    starfield.geometry.attributes.position.needsUpdate = true;
-    cockpitJoystick.rotation.x = 0.3 + Math.sin(clock.getElapsedTime() * 2) * 0.05;
+    if (cockpitJoystick) cockpitJoystick.rotation.x = 0.3 + Math.sin(clock.getElapsedTime() * 2) * 0.05;
 
     if (hyperspaceData.time >= hyperspaceData.duration) {
-        // --- Check if the quest is complete ---
         if (currentLevel === 'crystal') {
             questComplete();
         } else {
@@ -1147,7 +1253,6 @@ function updateHyperspace(delta) {
             hyperspaceData.time = 0;
             loadLevel(nextLevel, false, true);
         }
-
     }
 }
 
@@ -1164,12 +1269,12 @@ function updateLandingSequence(delta) {
     const blackColor = new THREE.Color(0x000000);
     if (scene.fog) scene.fog.color.lerpColors(blackColor, toColor, fadeProgress);
     scene.background.lerpColors(blackColor, toColor, fadeProgress);
-    starfield.visible = false;
+    if (starfield) starfield.visible = false;
 
     spacecraft.position.lerp(spacecraft.userData.targetLandPosition, 0.8 * delta);
     playerObject.position.copy(spacecraft.position).add(new THREE.Vector3(0, GameWorld.player.height, 0));
     playerObject.quaternion.copy(spacecraft.quaternion);
-    cockpitJoystick.rotation.x = 0.3 + Math.sin(clock.getElapsedTime() * 2) * 0.05;
+    if (cockpitJoystick) cockpitJoystick.rotation.x = 0.3 + Math.sin(clock.getElapsedTime() * 2) * 0.05;
 
     if (spacecraft.position.distanceTo(spacecraft.userData.targetLandPosition) < 0.2) {
         player.state = 'on_foot';
@@ -1179,12 +1284,15 @@ function updateLandingSequence(delta) {
         playerObject.position.copy(spacecraft.position).add(exitOffset);
         playerObject.position.y = GameWorld.player.height / 2;
         
-        document.getElementById('doom-hud').style.display = 'grid';
-        document.getElementById('crosshair').style.display = 'block';
-        cockpitOverlayElement.style.display = 'none';
-        cockpitJoystick.visible = false;
-        cockpitHexHUD.visible = false;
-        gunModels[player.currentWeaponIndex].visible = true;
+        const doomHud = document.getElementById('doom-hud');
+        const crosshair = document.getElementById('crosshair');
+        
+        if (doomHud) doomHud.style.display = 'grid';
+        if (crosshair) crosshair.style.display = 'block';
+        if (cockpitOverlayElement) cockpitOverlayElement.style.display = 'none';
+        if (cockpitJoystick) cockpitJoystick.visible = false;
+        if (cockpitHexHUD) cockpitHexHUD.visible = false;
+        if (gunModels[player.currentWeaponIndex]) gunModels[player.currentWeaponIndex].visible = true;
 
         spacecraft.visible = true;
         spacecraft.userData.colliderBox = new THREE.Box3().setFromObject(spacecraft);
