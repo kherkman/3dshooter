@@ -628,9 +628,9 @@ function onDeviceMotion(event) {
         orientationAngle = window.orientation;
     }
 
-    // Adjust signs dynamically depending on landscape orientation (Landscape-Left vs Landscape-Right)
-    let signYaw = -1;
-    let signPitch = -1;
+    // Default signs for standard landscape
+    let signYaw = 1;
+    let signPitch = 1;
 
     // Landscape-Left is typically 90 degrees, Landscape-Right is typically 270 or -90 degrees
     if (orientationAngle === 90 || orientationAngle === -270) {
@@ -643,8 +643,10 @@ function onDeviceMotion(event) {
 
     // Convert degrees per second to radians per second
     const degToRad = Math.PI / 180;
-    const yawRateRad = rotationRate.beta * degToRad;   // vertical rotation in landscape
-    const pitchRateRad = rotationRate.gamma * degToRad; // horizontal rotation in landscape
+    
+    // beta controls vertical (Pitch) look in screen-space, gamma controls horizontal (Yaw) look in screen-space
+    const pitchRateRad = rotationRate.beta * degToRad;  
+    const yawRateRad = rotationRate.gamma * degToRad;
 
     // Deadzone to filter out natural hand tremors
     const deadZone = 0.05; // radians per second
@@ -1255,9 +1257,6 @@ function pickUpObject(object) {
     if(orbIndex > -1) collectibles.glowingOrbs.splice(orbIndex, 1);
 }
 
-/**
- * Pelitiedostojen latauksen jatko-osat.
- */
 function updateCockpitSequence(delta) {
     if (!spacecraft) return;
     const data = spacecraft.userData;
