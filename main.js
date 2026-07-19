@@ -145,6 +145,71 @@ function init() {
         };
     }
 
+    // Dynamic Options Close X Injection
+    const optionsContent = document.getElementById('options-content');
+    if (optionsContent) {
+        const h1 = optionsContent.querySelector('h1');
+        if (h1) {
+            h1.className = 'menu-header';
+            const span = document.createElement('span');
+            span.textContent = h1.textContent;
+            h1.textContent = '';
+            h1.appendChild(span);
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.id = 'close-options-x';
+            closeBtn.className = 'header-close-button';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.addEventListener('click', () => toggleOptionsMenu(false));
+            closeBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                toggleOptionsMenu(false);
+            });
+            h1.appendChild(closeBtn);
+        }
+    }
+
+    // Intercept blocker interactions to unpause properly on touch/mobile devices
+    const blockerEl = document.getElementById('blocker');
+    if (blockerEl) {
+        const handleBlockerClick = () => {
+            if (!isGameOver) {
+                isPaused = false;
+                blockerEl.style.display = 'none';
+                if (hasInteracted) {
+                    switchMusicToLevel(currentLevel);
+                }
+            }
+        };
+        blockerEl.addEventListener('click', handleBlockerClick, true);
+        blockerEl.addEventListener('touchend', handleBlockerClick, true);
+    }
+
+    // Wrap toggleOptionsMenu globally to ensure the game pauses and unpauses correctly during gameplay
+    if (typeof toggleOptionsMenu !== 'undefined') {
+        const originalToggleOptionsMenu = toggleOptionsMenu;
+        toggleOptionsMenu = function(forceOpen = null) {
+            const optionsMenu = document.getElementById('options-menu');
+            const isCurrentlyOpen = optionsMenu.style.display.includes('flex');
+            const shouldBeOpen = forceOpen !== null ? forceOpen : !isCurrentlyOpen;
+
+            originalToggleOptionsMenu(forceOpen);
+            isPaused = shouldBeOpen;
+        };
+    }
+
+    // WebAudio Autoplay bypass
+    const startIntroMusicOnInteraction = () => {
+        if (!hasInteracted) {
+            hasInteracted = true;
+            if (backgroundMusic && !backgroundMusic.isPlaying) {
+                backgroundMusic.play();
+            }
+        }
+    };
+    window.addEventListener('click', startIntroMusicOnInteraction, { once: true });
+    window.addEventListener('touchstart', startIntroMusicOnInteraction, { once: true });
+
     // Dynamic Orientation Warning for Mobile Devices
     if (isTouchDevice) {
         const warningDiv = document.createElement('div');
@@ -262,7 +327,13 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
     player.xrayGogglesActive = false; 
     
     if (starfield) starfield.visible = false;
-    if (isPaused) { document.getElementById('options-menu').style.display = 'none'; isPaused = false; }
+    
+    if (isPaused) { 
+        document.getElementById('options-menu').style.display = 'none'; 
+        if (!isInitialLoad) {
+            isPaused = false; 
+        }
+    }
     if (isGameOver) isGameOver = false;
 
     clearScene();
@@ -427,7 +498,14 @@ function winGame() {
 
 function loadSounds() {
     const audioLoader = new THREE.AudioLoader();
-    const soundsToLoad = [ 'player_damage', 'alien_death', 'cyborg_death', 'cyborg_shoot', 'gun_pistol', 'gun_shotgun', 'gun_machinegun', 'gun_rocket', 'gun_plasma', 'gun_grenade', 'gun_axe', 'gun_sniper', 'gun_blackhole', 'blackhole_open', 'blackhole_close' ];
+    const soundsToLoad = [ 
+        'player_damage', 'alien_death', 'cyborg_death', 'cyborg_shoot', 
+        'gun_pistol', 'gun_shotgun', 'gun_machinegun', 'gun_rocket', 
+        'gun_plasma', 'gun_grenade', 'gun_axe', 'gun_sniper', 'gun_blackhole', 
+        'blackhole_open', 'blackhole_close',
+        'jetpack', 'hoverbike', 'spacecraft', 'pickup_health', 'pickup_fuel_cell',
+        'flyer_shoot', 'shard_roller_shoot', 'stingray_bomb_drop', 'lightning_shoot'
+    ];
     
     // Load introductory background music (intro menu)
     audioLoader.load('music_intro.mp3', 
@@ -775,7 +853,7 @@ function animate() {
         });
     }
 
-    if (!isPaused || gameSettings.touchControlsEnabled) {
+    if (!isPaused) {
         // Track the count of projectiles before the update loop to capture new shots dynamically
         const prevAlienProjCount = alienProjectiles.length;
         const prevShardProjCount = shardProjectiles.length;
