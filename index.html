@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Robot Attack 3D FPS</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: Creepster for Horror Theme -->
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- CONTAINER FOR LEVEL START NOTIFICATIONS -->
+    <div id="level-notification-container"></div>
+
+    <div id="blocker" class="overlay">
+        <div id="instructions" class="menu-box">
+            <h1 class="menu-header horror-title">
+                <span>Robot Attack 3D FPS</span>
+                <button id="close-intro" class="header-close-button">&times;</button>
+            </h1>
+
+            <!-- CANVAS FOR LEVEL PROGRESSION IN INTRO -->
+            <canvas id="level-progression-intro" width="400" height="50" style="margin-top: 15px; margin-bottom: 15px; background: rgba(0,0,0,0.4); border: 1px solid #ff3300;"></canvas>
+            
+            <p style="font-size: 18px; margin-bottom: 20px;">The enemy robots have attacked your city. Find a spacecraft and get away!</p>
+            
+            <div class="controls-list-intro">
+                <p><strong>Move:</strong> W, A, S, D</p>
+                <p><strong>Jump / Jetpack:</strong> SPACE</p>
+                <p><strong>Shoot:</strong> LEFT CLICK</p>
+                <p><strong>Switch Weapon:</strong> Q / E</p>
+                <p><strong>Inventory:</strong> R</p>
+                <p><strong>Interact:</strong> F</p>
+                <p><strong>Map:</strong> HOLD TAB</p>
+                <p><strong>Options:</strong> O / ESC</p>
+            </div>
+
+            <p style="font-size: 26px; margin-top: 25px; font-family: 'Creepster', cursive; letter-spacing: 2px; color: #ff3300;">Click or Press SPACE to Comply</p>
+            
+            <div class="options-buttons" style="margin-top: 20px;">
+                 <button id="show-touch-controls-intro">Show Touch Controls</button>
+                 <button id="options-button-intro">Options</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="options-menu" class="overlay">
+        <div id="options-content" class="menu-box">
+            <h1>OPTIONS</h1>
+            <div class="options-grid">
+                <div>
+                    <h2>CONTROLS</h2>
+                    <p><strong>Move:</strong> W, A, S, D</p>
+                    <p><strong>Jump / Jetpack:</strong> SPACE</p>
+                    <p><strong>Shoot:</strong> LEFT CLICK</p>
+                    <p><strong>Switch Weapon:</strong> Q / E</p>
+                    <p><strong>Inventory:</strong> R</p>
+                    <p><strong>Interact:</strong> F</p>
+                    <p><strong>Map:</strong> HOLD TAB</p>
+                    <p><strong>Options:</strong> O / ESC</p>
+                </div>
+                <div>
+                    <h2>AUDIO & VIDEO</h2>
+                    <p><label for="sfx-volume">Sound FX Volume</label></p>
+                    <input type="range" id="sfx-volume" class="volume-slider" min="0" max="1" step="0.05">
+                    <p><label for="music-volume">Music Volume</label></p>
+                    <input type="range" id="music-volume" class="volume-slider" min="0" max="1" step="0.05">
+                    <p><label for="sbs-separation">3D Camera Separation</label></p>
+                    <input type="range" id="sbs-separation" class="volume-slider" min="0.01" max="0.20" step="0.005" value="0.064">
+                </div>
+            </div>
+            <div class="options-buttons">
+                <button id="show-touch-controls-options">Show Touch Controls</button>
+                <button id="toggle-touch-button">Touch Controls: ON</button>
+                <button id="toggle-touch-look-button" class="options-button">Touch Look: ON</button> 
+                <button id="sbs-3d-button">Side-by-Side 3D: OFF</button>
+                <button id="retro-effect-button">Retro Effect: OFF</button>
+                <button id="fullscreen-button">Toggle Fullscreen</button>
+                <button id="restart-button-options">Restart Game</button>
+                <button id="close-options">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="touch-controls-menu" class="overlay" style="display: none;">
+        <div id="touch-controls-content" class="menu-box">
+            <h1>TOUCH CONTROLS</h1>
+
+            <div id="touch-screen-layout">
+                <div id="touch-diagram">
+                    <div class="touch-zone move-zone">
+                        <p>MOVE</p>
+                        <span>(Left 30%)</span>
+                    </div>
+                    <div class="touch-zone action-zone">
+                        <div class="action-sub-zone jump-zone"><p>JUMP / JETPACK</p></div>
+                        <div class="action-sub-zone shoot-zone"><p>SHOOT</p></div>
+                        <span>(Center 40%)</span>
+                    </div>
+                    <div class="touch-zone look-zone">
+                        <p>LOOK</p>
+                        <span>(Right 30%)</span>
+                    </div>
+                </div>
+                <div id="touch-hud-area-label">
+                    <p>HUD AREA</p>
+                </div>
+            </div>
+
+            <div class="options-grid" style="margin-top: 20px;">
+                <div>
+                    <h2>CONTROLS</h2>
+                    <p><strong>Move:</strong> Drag in the left zone.</p>
+                    <p><strong>Look:</strong> Drag in the right zone.</p>
+                    <p><strong>Jump / Jetpack:</strong> Tap the top-center of the screen.</p>
+                    <p><strong>Shoot:</strong> Tap/Hold bottom-center or the weapon icon on the HUD.</p>
+                </div>
+                 <div>
+                    <h2>HUD BUTTONS</h2>
+                    <p><strong>Switch Weapon:</strong> Use the &lt; and &gt; buttons on the HUD.</p>
+                    <p><strong>Goggles:</strong> Tap the goggles icon on the HUD to toggle.</p>
+                    <p><strong>Inventory:</strong> Use the INV button on the HUD.</p>
+                    <p><strong>Interact:</strong> Tap the on-screen text prompts.</p>
+                </div>
+            </div>
+            <div class="options-buttons">
+                <button id="close-touch-controls">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="inventory-menu" class="overlay">
+        <div id="inventory-content" class="menu-box">
+            <h1 class="menu-header">
+                <span>INVENTORY [R]</span>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <button id="options-button-inventory" class="hud-button" style="width: auto; height: 40px; font-size: 16px; padding: 5px 15px; background: rgba(255, 170, 0, 0.4); border: 2px solid #ffaa00; border-radius: 5px; color: #fff; cursor: pointer;">Options</button>
+                    <button id="close-inventory" class="header-close-button">&times;</button>
+                </div>
+            </h1>
+            <div id="inventory-grid">
+                <div class="inventory-section">
+                    <div id="inventory-weapons-list"></div>
+                    <br>
+                    <h2>ITEMS</h2>
+                    <div id="inventory-items-list"></div>
+                </div>
+                <div class="inventory-section" id="inventory-map-section">
+                    <h2>MISSION PROGRESS</h2>
+                    <canvas id="level-progression-inventory" width="400" height="50" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); border: 1px solid #ffaa00;"></canvas>
+                    <h2>SECTOR MAP</h2>
+                    <canvas id="inventory-map-canvas" width="400" height="400"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="debug-menu" class="overlay">
+        <div id="debug-content" class="menu-box">
+            <h1>DEVELOPER CONSOLE</h1>
+            <div class="debug-grid">
+                <div class="debug-section"><h2>LEVELS</h2><div id="level-list"></div></div>
+                <div class="debug-section"><h2>ITEMS</h2><div id="item-list"></div></div>
+                <div class="debug-section"><h2>WEAPONS</h2><div id="weapon-list"></div></div>
+                <div class="debug-section"><h2>ENTITIES</h2><div id="entity-list"></div></div>
+                <div class="debug-section preview-section">
+                    <h2>PREVIEW</h2>
+                    <canvas id="preview-canvas"></canvas>
+                    <div id="preview-controls"></div>
+                    <div id="preview-description"></div>
+                    <div id="preview-slider-container">
+                        <div><label for="preview-zoom-slider">Zoom</label><br><input type="range" id="preview-zoom-slider" class="preview-slider" min="0.5" max="15" step="0.1" value="3"></div>
+                        <div><label for="preview-pan-slider">Pan Vertical</label><br><input type="range" id="preview-pan-slider" class="preview-slider" min="-1.5" max="2.5" step="0.1" value="0.5"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="options-buttons"><button id="close-debug">Close (J)</button></div>
+            <div id="debug-scrollbar-track"><div id="debug-scrollbar-thumb"></div></div>
+        </div>
+    </div>
+    
+    <div id="item-pickup-notification"></div>
+    <div id="retro-overlay"></div>
+    <div id="fuzzy-vision-overlay"></div>
+    <div id="damage-flash"></div>
+    <div id="map-container"><canvas id="map-canvas" width="500" height="500"></canvas></div>
+    <div id="interaction-prompt"></div>
+    <div id="cockpit-overlay"></div>
+    <div id="worm-attack-overlay"></div>
+
+    <button id="exit-vehicle-button" class="hud-button">EXIT</button>
+
+    <div id="doom-hud">
+        <div class="hud-panel hud-left">
+            <button id="inventory-button-hud" class="hud-button">INV</button>
+            <div id="fuel-cell-hud" class="hud-item-container">
+                <canvas id="fuel-cell-icon"></canvas>
+                <span id="fuel-cells">0</span>
+            </div>
+            <div id="goggles-hud-container" class="hud-item-container">
+                <canvas id="goggles-icon"></canvas>
+                <div id="goggles-bar-container">
+                    <div id="goggles-bar"></div>
+                </div>
+            </div>
+        </div>
+        <div class="hud-panel hud-center">
+            <div id="attack-indicator-container">
+                <div id="attack-indicator-horizontal"></div>
+                <div id="attack-indicator-vertical"></div>
+            </div>
+            <div id="compass-container">
+                <div id="compass-arrow"></div>
+                <span id="compass-distance"></span>
+            </div>
+            <canvas id="health-icon"></canvas>
+            <span id="health">100</span>
+            <div id="jetpack-hud-container">
+                <canvas id="jetpack-icon"></canvas>
+                <div id="jetpack-bar-container"><div id="jetpack-bar"></div></div>
+            </div>
+        </div>
+        <div class="hud-panel hud-right">
+            <button id="weapon-prev-hud" class="hud-button">&lt;</button>
+            <div id="weapon-display-container"></div>
+            <button id="weapon-next-hud" class="hud-button">&gt;</button>
+            <span id="ammo">&infin;</span>
+        </div>
+    </div>
+
+    <div id="crosshair"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script src="game-data.js"></script>
+    <script src="game-weapons.js"></script>
+    <script src="game-enemies.js"></script>
+    <script src="game-world.js"></script>
+    
+    <script src="player-controls.js"></script>
+    <script src="ui-and-hud.js"></script>
+    <script src="game-logic.js"></script>
+    
+    <script src="main.js"></script>
+
+    <!-- Dynamic Victory Screen & Music Handler -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const blocker = document.getElementById('blocker');
+            let winAudio = null;
+
+            const playWinMusic = () => {
+                // Stop base background level music if it is active
+                if (typeof backgroundMusic !== 'undefined' && backgroundMusic && backgroundMusic.isPlaying) {
+                    backgroundMusic.stop();
+                }
+                if (!winAudio) {
+                    winAudio = new Audio('music_finish.mp3');
+                    winAudio.loop = true;
+                    if (typeof gameSettings !== 'undefined' && gameSettings.musicVolume !== undefined) {
+                        winAudio.volume = gameSettings.musicVolume;
+                    } else {
+                        winAudio.volume = 0.2;
+                    }
+                }
+                winAudio.play().catch(err => console.warn('Could not play victory music:', err));
+            };
+
+            const stopWinMusic = () => {
+                if (winAudio) {
+                    winAudio.pause();
+                    winAudio.currentTime = 0;
+                }
+            };
+
+            if (blocker) {
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.type === 'childList') {
+                            const innerText = blocker.innerText || '';
+                            const isWin = blocker.querySelector('.menu-box') && 
+                                          !blocker.querySelector('#instructions') && 
+                                          (innerText.includes('Successfully Finished') || innerText.includes('Saved') || innerText.includes('SAVED'));
+                            
+                            if (isWin) {
+                                const menuBox = blocker.querySelector('.menu-box');
+                                if (menuBox) {
+                                    menuBox.id = 'win-screen-box';
+                                    const header = menuBox.querySelector('h1');
+                                    if (header) {
+                                        header.classList.add('win-header-spooky');
+                                    }
+                                }
+                                playWinMusic();
+                            } else {
+                                stopWinMusic();
+                            }
+                        }
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                            if (blocker.style.display === 'none') {
+                                stopWinMusic();
+                            }
+                        }
+                    });
+                });
+                observer.observe(blocker, { childList: true, attributes: true, attributeFilter: ['style'] });
+            }
+        });
+    </script>
+</body>
+</html>
