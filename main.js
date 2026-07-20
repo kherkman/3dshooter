@@ -20,7 +20,18 @@ let backgroundMusic;
 let hasInteracted = false;
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 // SFX Volume decreased to 0.15, Music Volume increased to 0.4
-const gameSettings = { sfxVolume: 0.15, musicVolume: 0.4, touchControlsEnabled: isTouchDevice, sbs3dEnabled: false, retroEffectEnabled: false, sbsEyeSep: 0.064, gyroLookEnabled: false };
+// Added webAudioEnabled (default false) and texturesEnabled (default true)
+const gameSettings = { 
+    sfxVolume: 0.15, 
+    musicVolume: 0.4, 
+    touchControlsEnabled: isTouchDevice, 
+    sbs3dEnabled: false, 
+    retroEffectEnabled: false, 
+    sbsEyeSep: 0.064, 
+    gyroLookEnabled: false,
+    webAudioEnabled: false,
+    texturesEnabled: true
+};
 
 
 // --- GAME OBJECTS & COLLECTIONS ---
@@ -48,6 +59,10 @@ let currentLevel = 'city';
 let interactionPromptElement, inventoryMenu, cockpitOverlayElement;
 let toxicStorm = { active: false, timer: 60 };
 let lightningTimer = 5;
+
+// --- TEXTURES ---
+let cityWallTexture, cityWindowTexture, cityFloorTexture;
+let desertRockTexture, toxicFloorTexture, toxicStemTexture, toxicLeafTexture;
 
 // --- DEBUG MENU ---
 let debugMenu, previewRenderer, previewScene, previewCamera, previewObject, previewClock, previewAnimationId;
@@ -128,6 +143,39 @@ function init() {
     }
 
     loadSounds();
+    
+    // Initialize Texture Loader and Load City, Desert, and Toxic Textures
+    const textureLoader = new THREE.TextureLoader();
+    cityWallTexture = textureLoader.load('wall.jpg');
+    cityWindowTexture = textureLoader.load('window.jpg');
+    cityFloorTexture = textureLoader.load('cityfloor.jpg');
+    desertRockTexture = textureLoader.load('desertrock.jpg');
+    toxicFloorTexture = textureLoader.load('toxicfloor.jpg');
+    toxicStemTexture = textureLoader.load('toxicstem.jpg');
+    toxicLeafTexture = textureLoader.load('toxicleaf.jpg');
+    
+    cityWallTexture.wrapS = THREE.RepeatWrapping;
+    cityWallTexture.wrapT = THREE.RepeatWrapping;
+    cityFloorTexture.wrapS = THREE.RepeatWrapping;
+    cityFloorTexture.wrapT = THREE.RepeatWrapping;
+    desertRockTexture.wrapS = THREE.RepeatWrapping;
+    desertRockTexture.wrapT = THREE.RepeatWrapping;
+    toxicFloorTexture.wrapS = THREE.RepeatWrapping;
+    toxicFloorTexture.wrapT = THREE.RepeatWrapping;
+    toxicStemTexture.wrapS = THREE.RepeatWrapping;
+    toxicStemTexture.wrapT = THREE.RepeatWrapping;
+    toxicLeafTexture.wrapS = THREE.RepeatWrapping;
+    toxicLeafTexture.wrapT = THREE.RepeatWrapping;
+
+    // Expose textures globally so game-world.js can access them
+    window.cityWallTexture = cityWallTexture;
+    window.cityWindowTexture = cityWindowTexture;
+    window.cityFloorTexture = cityFloorTexture;
+    window.desertRockTexture = desertRockTexture;
+    window.toxicFloorTexture = toxicFloorTexture;
+    window.toxicStemTexture = toxicStemTexture;
+    window.toxicLeafTexture = toxicLeafTexture;
+
     playerObject = new THREE.Object3D();
     playerObject.position.set(0, 0, 10);
     playerObject.add(camera);
@@ -338,12 +386,12 @@ function init() {
                 };
             }
 
-            originalToggleOptionsMenu(forceOpen);
-
             // Restore pointer lock capability
             if (!shouldBeOpen && isIntroActive) {
                 document.body.requestPointerLock = originalRequestPointerLock;
             }
+
+            originalToggleOptionsMenu(forceOpen);
 
             if (isIntroActive) {
                 isPaused = true;
@@ -574,7 +622,7 @@ function clearScene() {
     aliens.length = 0; bullets.length = 0; rockets.length = 0; plasmaRings.length = 0; grenades.length = 0; clusters.length = 0; alienDebris.length = 0; hitScatters.length = 0; alienProjectiles.length = 0; cyborgProjectiles.length = 0; shellCasings.length = 0; blackHoles.length = 0; shardProjectiles.length = 0;
     collectibles.health.length = 0; collectibles.ammo.length = 0; collectibles.weaponPickups.length = 0; collectibles.jetpack = null; collectibles.fuelCells.length = 0; collectibles.glowingOrbs.length = 0; collectibles.xrayGoggles = null;
     interactables.length = 0; spacecraft = null; motorcycle = null;
-    buildingColliders.length = 0; vegetation.length = 0; bunkers.length = 0; bombs.length = 0;
+    buildingColliders.length = 0; vegetation.length = 0; bunkers.length = 0; bunkers.length = 0; bombs.length = 0;
     toxicRainParticles = null;
 }
 
@@ -801,8 +849,9 @@ function winGame() {
 
 function loadSounds() {
     const audioLoader = new THREE.AudioLoader();
+    // Added 'player_death' to soundsToLoad array
     const soundsToLoad = [ 
-        'player_damage', 'alien_death', 'cyborg_death', 'cyborg_shoot', 
+        'player_damage', 'player_death', 'alien_death', 'cyborg_death', 'cyborg_shoot', 
         'gun_pistol', 'gun_shotgun', 'gun_machinegun', 'gun_rocket', 
         'gun_plasma', 'gun_grenade', 'gun_axe', 'gun_sniper', 'gun_blackhole', 
         'blackhole_open', 'blackhole_close',
@@ -938,6 +987,8 @@ function switchMusicToLevel(levelName) {
 }
 
 function playSyntheticSound(name, pan = 0, distanceMultiplier = 1.0) {
+    // If Web Audio is disabled, do not play synthetic sounds
+    if (!gameSettings.webAudioEnabled) return;
     if (!audioListener || !audioListener.context) return;
     const ctx = audioListener.context;
     
@@ -1167,6 +1218,21 @@ function playSyntheticSound(name, pan = 0, distanceMultiplier = 1.0) {
         gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
         osc.start(now);
         osc.stop(now + 0.26);
+    } else if (name === 'player_death') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(10, now + 0.8);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(180, now);
+        filter.frequency.exponentialRampToValueAtTime(10, now + 0.8);
+        osc.disconnect(gain);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.gain.setValueAtTime(volume * 1.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.9);
+        osc.start(now);
+        osc.stop(now + 0.91);
     } else if (name.startsWith('blackhole_')) {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(name.includes('open') ? 60 : 250, now);
@@ -1257,6 +1323,13 @@ function playSound(name, sourcePosition = null) {
     // Optimization: If the sound is too far and completely silent, don't play it
     if (distanceMultiplier <= 0) return;
 
+    // Force only synthetic sound effects when Web Audio option is ON
+    if (gameSettings.webAudioEnabled) {
+        playSyntheticSound(name, pan, distanceMultiplier);
+        return;
+    }
+
+    // Fallback to synthetic if the MP3 file failed to load (or is set to synthetic) when Web Audio is OFF
     if (gameSounds[name] === 'synthetic' || !gameSounds[name]) {
         playSyntheticSound(name, pan, distanceMultiplier);
         return;
@@ -1286,7 +1359,10 @@ function playSound(name, sourcePosition = null) {
 function animate() {
     requestAnimationFrame(animate);
     
-    if (health <= 0 && !isGameOver) gameOver();
+    if (health <= 0 && !isGameOver) {
+        playSound('player_death');
+        gameOver();
+    }
     if (isGameOver) return;
     
     const delta = clock.getDelta();
