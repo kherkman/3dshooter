@@ -1230,7 +1230,7 @@ function playSound(name, sourcePosition = null) {
             
             // Calculate distance attenuation (inverse distance model)
             const referenceDistance = 5;
-            const maxDistance = 120;
+            const maxDistance = 9120; // max distance for sound set to be audible 9120 units so webaudio does not play sound (before it was 120 units)
             
             if (dist > referenceDistance) {
                 distanceMultiplier = referenceDistance / (referenceDistance + 1.2 * (dist - referenceDistance));
