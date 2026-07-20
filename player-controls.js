@@ -589,6 +589,33 @@ function setupControls() {
         toggleTouchLookButton.addEventListener('touchend', (e) => { e.preventDefault(); toggleTouchLookEnabled(); });
         toggleTouchLookButton.textContent = `Motion Look: ${gameSettings.gyroLookEnabled ? 'ON' : 'OFF'}`;
     }
+
+    // Web Audio Toggle Button listener
+    const webAudioButton = document.getElementById('toggle-web-audio-button');
+    if (webAudioButton) {
+        const toggleWebAudio = (e) => {
+            if (e) e.preventDefault();
+            gameSettings.webAudioEnabled = !gameSettings.webAudioEnabled;
+            webAudioButton.textContent = `Web Audio: ${gameSettings.webAudioEnabled ? 'ON' : 'OFF'}`;
+        };
+        webAudioButton.addEventListener('click', toggleWebAudio);
+        webAudioButton.addEventListener('touchend', toggleWebAudio);
+        webAudioButton.textContent = `Web Audio: ${gameSettings.webAudioEnabled ? 'ON' : 'OFF'}`;
+    }
+
+    // Textures Toggle Button listener (loads level immediately on change)
+    const texturesButton = document.getElementById('toggle-textures-button');
+    if (texturesButton) {
+        const toggleTextures = (e) => {
+            if (e) e.preventDefault();
+            gameSettings.texturesEnabled = !gameSettings.texturesEnabled;
+            texturesButton.textContent = `Textures: ${gameSettings.texturesEnabled ? 'ON' : 'OFF'}`;
+            loadLevel(currentLevel);
+        };
+        texturesButton.addEventListener('click', toggleTextures);
+        texturesButton.addEventListener('touchend', toggleTextures);
+        texturesButton.textContent = `Textures: ${gameSettings.texturesEnabled ? 'ON' : 'OFF'}`;
+    }
     
     const exitVehicleButton = document.getElementById('exit-vehicle-button');
     if (exitVehicleButton) {
