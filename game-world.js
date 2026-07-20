@@ -42,7 +42,14 @@ const GameWorld = {
                 scene.fog = new THREE.Fog(mistColor, 0, 70);
                 const hemisphereLight = new THREE.HemisphereLight(0xffdcb1, 0x444455, 1.2); scene.add(hemisphereLight);
                 const directionalLight = new THREE.DirectionalLight(0xffa500, 0.7); directionalLight.position.set(50, 50, 25); directionalLight.castShadow = true; directionalLight.shadow.mapSize.width = 2048; directionalLight.shadow.mapSize.height = 2048; directionalLight.shadow.camera.left = -100; directionalLight.shadow.camera.right = 100; directionalLight.shadow.camera.top = 100; directionalLight.shadow.camera.bottom = -100; scene.add(directionalLight);
-                const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.9 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+                
+                // City Ground using cityfloor.jpg when textures are enabled
+                const groundMat = new THREE.MeshStandardMaterial({ 
+                    color: (gameSettings.texturesEnabled && cityFloorTexture) ? 0xffffff : 0x4a4a4a, 
+                    map: (gameSettings.texturesEnabled && cityFloorTexture) ? cityFloorTexture : null,
+                    roughness: 0.9 
+                });
+                const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), groundMat); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
                 
                 const padHeight = 0.2;
                 const landingPadGeo = new THREE.CylinderGeometry(15, 15, padHeight, 32);
@@ -60,7 +67,56 @@ const GameWorld = {
                     step.receiveShadow = true; scene.add(step);
                 }
                 
-                const bG = new THREE.BoxGeometry(1, 1, 1); const wG = new THREE.BoxGeometry(0.8, 1.6, 0.1); const wM = new THREE.MeshStandardMaterial({ emissive: 0xffaa00, emissiveIntensity: 1.5, color: 0xffaa00 }); const sR = 15.0; for (let i = 0; i < 200; i++) { const p = new THREE.Vector2((Math.random() - 0.5) * 190, (Math.random() - 0.5) * 190); if (p.distanceTo(new THREE.Vector2(0,10)) < sR || p.distanceTo(new THREE.Vector2(50,50)) < 30) continue; const w = Math.random() * 8 + 6; const d = Math.random() * 8 + 6; const h = Math.random() * 40 + 15; let c = new THREE.Color(); if (Math.random() > 0.4) { const b = Math.random() * 0.2 + 0.2; c.setRGB(b, b * 0.7, b * 0.5); } else { const g = Math.random() * 0.3 + 0.2; c.setRGB(g, g, g); } const bM = new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, metalness: 0.2 }); const b = new THREE.Mesh(bG, bM); b.scale.set(w, h, d); b.position.set(p.x, h / 2, p.y); b.castShadow = true; b.receiveShadow = true; scene.add(b); buildingColliders.push(new THREE.Box3().setFromObject(b)); const wS = 2.0; for (let y = wS; y < h - wS; y += wS * 1.5) { for (let x = -w / 2 + wS; x < w / 2 - wS; x += wS) { if (Math.random() > 0.3) { const win = new THREE.Mesh(wG, wM); win.position.set(p.x + x, y, p.y + d / 2 + 0.01); scene.add(win); } if (Math.random() > 0.3) { const win = new THREE.Mesh(wG, wM); win.position.set(p.x + x, y, p.y - d / 2 - 0.01); scene.add(win); } } for (let z = -d / 2 + wS; z < d / 2 - wS; z += wS) { if (Math.random() > 0.3) { const win = new THREE.Mesh(wG, wM); win.rotation.y = Math.PI / 2; win.position.set(p.x + w / 2 + 0.01, y, p.y + z); scene.add(win); } if (Math.random() > 0.3) { const win = new THREE.Mesh(wG, wM); win.rotation.y = Math.PI / 2; win.position.set(p.x - w / 2 - 0.01, y, p.y + z); scene.add(win); } } } }
+                // City Windows and Buildings using wall.jpg and window.jpg when textures are enabled
+                const bG = new THREE.BoxGeometry(1, 1, 1); const wG = new THREE.BoxGeometry(0.8, 1.6, 0.1); 
+                const wM = new THREE.MeshStandardMaterial({ 
+                    color: (gameSettings.texturesEnabled && cityWindowTexture) ? 0xffffff : 0xffaa00,
+                    map: (gameSettings.texturesEnabled && cityWindowTexture) ? cityWindowTexture : null,
+                    emissive: 0xffaa00, 
+                    emissiveIntensity: gameSettings.texturesEnabled ? 0.3 : 1.5 
+                }); 
+                const sR = 15.0; 
+                for (let i = 0; i < 200; i++) { 
+                    const p = new THREE.Vector2((Math.random() - 0.5) * 190, (Math.random() - 0.5) * 190); 
+                    if (p.distanceTo(new THREE.Vector2(0,10)) < sR || p.distanceTo(new THREE.Vector2(50,50)) < 30) continue; 
+                    const w = Math.random() * 8 + 6; 
+                    const d = Math.random() * 8 + 6; 
+                    const h = Math.random() * 40 + 15; 
+                    let c = new THREE.Color(); 
+                    if (Math.random() > 0.4) { 
+                        const b = Math.random() * 0.2 + 0.2; 
+                        c.setRGB(b, b * 0.7, b * 0.5); 
+                    } else { 
+                        const g = Math.random() * 0.3 + 0.2; 
+                        c.setRGB(g, g, g); 
+                    } 
+                    const bM = new THREE.MeshStandardMaterial({ 
+                        color: (gameSettings.texturesEnabled && cityWallTexture) ? 0xffffff : c, 
+                        map: (gameSettings.texturesEnabled && cityWallTexture) ? cityWallTexture : null,
+                        roughness: 0.9, 
+                        metalness: 0.2 
+                    }); 
+                    const b = new THREE.Mesh(bG, bM); b.scale.set(w, h, d); b.position.set(p.x, h / 2, p.y); b.castShadow = true; b.receiveShadow = true; scene.add(b); buildingColliders.push(new THREE.Box3().setFromObject(b)); 
+                    const wS = 2.0; 
+                    for (let y = wS; y < h - wS; y += wS * 1.5) { 
+                        for (let x = -w / 2 + wS; x < w / 2 - wS; x += wS) { 
+                            if (Math.random() > 0.3) { 
+                                const win = new THREE.Mesh(wG, wM); win.position.set(p.x + x, y, p.y + d / 2 + 0.01); scene.add(win); 
+                            } 
+                            if (Math.random() > 0.3) { 
+                                const win = new THREE.Mesh(wG, wM); win.position.set(p.x + x, y, p.y - d / 2 - 0.01); scene.add(win); 
+                            } 
+                        } 
+                        for (let z = -d / 2 + wS; z < d / 2 - wS; z += wS) { 
+                            if (Math.random() > 0.3) { 
+                                const win = new THREE.Mesh(wG, wM); win.rotation.y = Math.PI / 2; win.position.set(p.x + w / 2 + 0.01, y, p.y + z); scene.add(win); 
+                            } 
+                            if (Math.random() > 0.3) { 
+                                const win = new THREE.Mesh(wG, wM); win.rotation.y = Math.PI / 2; win.position.set(p.x - w / 2 - 0.01, y, p.y + z); scene.add(win); 
+                            } 
+                        } 
+                    } 
+                }
                 return { ground, hemisphereLight, directionalLight, landingPadPosition: landingPad.position.clone().add(new THREE.Vector3(0, 1.0, 0)) };
             },
             map: { size: 200, bgColor: '#2a1d14', buildingColor: '#5a483c' }
@@ -78,7 +134,15 @@ const GameWorld = {
                 const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 1.5); scene.add(hemisphereLight);
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); directionalLight.position.set(-100, 100, 50); directionalLight.castShadow = true; directionalLight.shadow.mapSize.width = 2048; directionalLight.shadow.mapSize.height = 2048; directionalLight.shadow.camera.left = -150; directionalLight.shadow.camera.right = 150; directionalLight.shadow.camera.top = 150; directionalLight.shadow.camera.bottom = -150; scene.add(directionalLight);
                 const ground = new THREE.Mesh( new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0xc2b280, roughness: 1.0 }) ); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-                const rockGeo = new THREE.DodecahedronGeometry(1); const rockMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 1.0, flatShading: true });
+                
+                // Desert Rocks using desertrock.jpg when textures are enabled
+                const rockGeo = new THREE.DodecahedronGeometry(1); 
+                const rockMat = new THREE.MeshStandardMaterial({ 
+                    color: (gameSettings.texturesEnabled && desertRockTexture) ? 0xffffff : 0x888888, 
+                    map: (gameSettings.texturesEnabled && desertRockTexture) ? desertRockTexture : null,
+                    roughness: 1.0, 
+                    flatShading: true 
+                });
                 for(let i = 0; i < 60; i++) {
                     const rock = new THREE.Mesh(rockGeo, rockMat);
                     rock.scale.set( Math.random() * 5 + 2, Math.random() * 8 + 3, Math.random() * 5 + 2 );
@@ -314,7 +378,15 @@ const GameWorld = {
                 scene.fog = new THREE.FogExp2(GameWorld.levels.toxic.fogColor, GameWorld.levels.toxic.fogDensity);
                 const hemisphereLight = new THREE.HemisphereLight(0xaaffaa, 0x446644, 1.3); scene.add(hemisphereLight);
                 const directionalLight = new THREE.DirectionalLight(0x88ff88, 0.6); directionalLight.position.set(0, 100, 0); directionalLight.castShadow = true; directionalLight.shadow.mapSize.width = 2048; directionalLight.shadow.mapSize.height = 2048; directionalLight.shadow.camera.left = -150; directionalLight.shadow.camera.right = 150; directionalLight.shadow.camera.top = 150; directionalLight.shadow.camera.bottom = -150; scene.add(directionalLight);
-                const ground = new THREE.Mesh( new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x334433, roughness: 1.0 }) ); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+                
+                // Toxic ground using toxicfloor.jpg when textures are enabled
+                const groundMat = new THREE.MeshStandardMaterial({ 
+                    color: (gameSettings.texturesEnabled && toxicFloorTexture) ? 0xffffff : 0x334433, 
+                    map: (gameSettings.texturesEnabled && toxicFloorTexture) ? toxicFloorTexture : null,
+                    roughness: 1.0 
+                });
+                const ground = new THREE.Mesh( new THREE.PlaneGeometry(400, 400), groundMat ); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+                
                 const rockGeo = new THREE.TorusKnotGeometry(1, 0.4, 64, 8, 2, 3); const rockMat = new THREE.MeshStandardMaterial({ color: 0x223322, roughness: 0.8, metalness: 0.4 });
                 for(let i = 0; i < 40; i++) { 
                     const rock = new THREE.Mesh(rockGeo, rockMat); 
@@ -331,15 +403,33 @@ const GameWorld = {
                     buildingColliders.push(box);
                 }
                 
-                const vegMat = new THREE.MeshStandardMaterial({color:0x44aa44, roughness:0.8}); const poisonMat = new THREE.MeshStandardMaterial({color:0xffff00, emissive:0xaaaa00, emissiveIntensity:0.5});
-                for(let i=0;i<150;i++){ 
-                    const isPoison = Math.random()<0.2;
+                // Poisonous & Normal vegetation using toxicstem.jpg & toxicleaf.jpg when textures are enabled
+                for(let i=0; i<150; i++){ 
+                    const isPoison = Math.random() < 0.2;
                     const plant = new THREE.Group();
-                    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.4, 6, 8), isPoison ? poisonMat : vegMat);
+                    
+                    const currentStemMat = new THREE.MeshStandardMaterial({
+                        color: (gameSettings.texturesEnabled && toxicStemTexture) ? (isPoison ? 0xffff00 : 0xffffff) : (isPoison ? 0xffff00 : 0x44aa44),
+                        map: (gameSettings.texturesEnabled && toxicStemTexture) ? toxicStemTexture : null,
+                        emissive: isPoison ? 0xaaaa00 : 0x000000,
+                        emissiveIntensity: isPoison ? 0.5 : 0.0,
+                        roughness: 0.8
+                    });
+
+                    const currentLeafMat = new THREE.MeshStandardMaterial({
+                        color: (gameSettings.texturesEnabled && toxicLeafTexture) ? (isPoison ? 0xffff00 : 0xffffff) : (isPoison ? 0xffff00 : 0x44aa44),
+                        map: (gameSettings.texturesEnabled && toxicLeafTexture) ? toxicLeafTexture : null,
+                        emissive: isPoison ? 0xaaaa00 : 0x000000,
+                        emissiveIntensity: isPoison ? 0.5 : 0.0,
+                        roughness: 0.8
+                    });
+
+                    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.4, 6, 8), currentStemMat);
                     stem.position.y = 3;
                     plant.add(stem);
+
                     for(let j=0; j<5; j++) {
-                        const leaf = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 4), isPoison ? poisonMat : vegMat);
+                        const leaf = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 4), currentLeafMat);
                         leaf.scale.z = 0.2;
                         leaf.position.set(Math.random()*4-2, j+1, Math.random()*4-2);
                         leaf.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
@@ -362,13 +452,19 @@ const GameWorld = {
                 }
                 scene.add(instancedGrass);
                 
-                const shelterPlantMat = new THREE.MeshStandardMaterial({color: 0x338833, roughness: 0.9});
+                // Shelter plants using toxicstem.jpg when textures are enabled
+                const currentShelterMat = new THREE.MeshStandardMaterial({
+                    color: (gameSettings.texturesEnabled && toxicStemTexture) ? 0xddffdd : 0x338833,
+                    map: (gameSettings.texturesEnabled && toxicStemTexture) ? toxicStemTexture : null,
+                    roughness: 0.9
+                });
+
                 for (let i = 0; i < 300; i++) {
                     const shelterPlant = new THREE.Group();
                     const height = Math.random() * 10 + 8; 
                     const stem = new THREE.Mesh(
                         new THREE.CylinderGeometry(0.1, 0.15, height, 5),
-                        shelterPlantMat
+                        currentShelterMat
                     );
                     stem.position.y = height / 2;
                     shelterPlant.add(stem);
@@ -379,18 +475,29 @@ const GameWorld = {
                     scene.add(shelterPlant);
                 }
 
-                const treeTrunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3b2a, roughness: 0.9 });
-                const treeLeafMat = new THREE.MeshStandardMaterial({ color: 0x223322, roughness: 0.8 });
+                // Trees using distinct trunk (toxicstem.jpg) and canopy (toxicleaf.jpg) textures when enabled
+                const currentTrunkMat = new THREE.MeshStandardMaterial({
+                    color: (gameSettings.texturesEnabled && toxicStemTexture) ? 0x8b5a2b : 0x5a3b2a,
+                    map: (gameSettings.texturesEnabled && toxicStemTexture) ? toxicStemTexture : null,
+                    roughness: 0.9
+                });
+
+                const currentCanopyMat = new THREE.MeshStandardMaterial({
+                    color: (gameSettings.texturesEnabled && toxicLeafTexture) ? 0xddffdd : 0x223322,
+                    map: (gameSettings.texturesEnabled && toxicLeafTexture) ? toxicLeafTexture : null,
+                    roughness: 0.8
+                });
+
                 for (let i = 0; i < 70; i++) {
                     const tree = new THREE.Group();
                     const height = Math.random() * 20 + 30; 
                     const radius = Math.random() * 1 + 0.8;
-                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.8, height, 12), treeTrunkMat);
+                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.8, height, 12), currentTrunkMat);
                     trunk.position.y = height / 2;
                     trunk.castShadow = true;
                     tree.add(trunk);
                     
-                    const canopy = new THREE.Mesh(new THREE.SphereGeometry(radius * 5, 8, 6), treeLeafMat);
+                    const canopy = new THREE.Mesh(new THREE.SphereGeometry(radius * 5, 8, 6), currentCanopyMat);
                     canopy.position.y = height;
                     canopy.castShadow = true;
                     tree.add(canopy);
