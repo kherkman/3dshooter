@@ -187,6 +187,11 @@ function init() {
                 playSound('pickup_health');
             } else if (itemName === 'Fuel Cell') {
                 playSound('pickup_fuel_cell');
+            } else if (itemName.includes('Ammo') || itemName === 'Singularity Canister') {
+                playSound('pickup_ammo');
+            } else {
+                // Jetpack, X-Ray Goggles, Weapons, Glowing Orb, etc.
+                playSound('pickup_item');
             }
         };
     }
@@ -197,6 +202,53 @@ function init() {
         createLightningBolt = function(startPos, endPos, damage) {
             originalCreateLightningBolt(startPos, endPos, damage);
             playSound('lightning_shoot', startPos);
+        };
+    }
+
+    // Wrap createExplosion to dynamically play specific explosion sounds
+    if (typeof createExplosion !== 'undefined') {
+        const originalCreateExplosion = createExplosion;
+        createExplosion = function(position, radius) {
+            originalCreateExplosion(position, radius);
+            if (radius === 8 || radius === 10) {
+                playSound('rocket_explosion', position);
+            } else if (radius === 6 || radius === 3.5) {
+                playSound('grenade_explosion', position);
+            }
+        };
+    }
+
+    // Wrap pickUpObject to play specific glowing orb pickup sound
+    if (typeof pickUpObject !== 'undefined') {
+        const originalPickUpObject = pickUpObject;
+        pickUpObject = function(object) {
+            originalPickUpObject(object);
+            if (object && object.userData && object.userData.key === 'glowing_orb') {
+                playSound('pickup_glowingorb');
+            }
+        };
+    }
+
+    // Wrap throwCarriedObject to play specific glowing orb throw sound
+    if (typeof throwCarriedObject !== 'undefined') {
+        const originalThrowCarriedObject = throwCarriedObject;
+        throwCarriedObject = function() {
+            const isCarryingOrb = player.carriedObject && player.carriedObject.userData && player.carriedObject.userData.key === 'glowing_orb';
+            originalThrowCarriedObject();
+            if (isCarryingOrb) {
+                playSound('throw_glowingorb');
+            }
+        };
+    }
+
+    // Wrap createHitScatter to play tentacle rising sound
+    if (typeof createHitScatter !== 'undefined') {
+        const originalCreateHitScatter = createHitScatter;
+        createHitScatter = function(position, color) {
+            originalCreateHitScatter(position, color);
+            if (color === 0xffffff) {
+                playSound('tentacles_rise', position);
+            }
         };
     }
 
@@ -447,6 +499,7 @@ function advanceIntro() {
     if (introStep === 0) {
         // Step 1: Reveal story and controls
         if (storyP) storyP.style.display = 'block';
+        if (controlsList) storyP.style.display = 'block'; // Wait, let's keep it as is
         if (controlsList) controlsList.style.display = 'block';
         if (ctaP) {
             ctaP.textContent = 'Click or Press SPACE to Comply';
@@ -613,9 +666,10 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
             blocker.style.display = 'flex';
             blocker.innerHTML = `<div id="instructions" class="menu-box">${initialInstructionsHTML}</div>`;
             
-            // Re-draw mission progress (planet view) as innerHTML has been completely reset
-            if (typeof drawLevelProgression === 'function') {
-                drawLevelProgression('level-progression-intro');
+            // Hide the progress bar canvas on the first intro screen
+            const introProgressionCanvas = document.getElementById('level-progression-intro');
+            if (introProgressionCanvas) {
+                introProgressionCanvas.style.display = 'none';
             }
 
             const instructions = document.getElementById('instructions');
@@ -754,6 +808,9 @@ function loadSounds() {
         'gun_plasma', 'gun_grenade', 'gun_axe', 'gun_sniper', 'gun_blackhole', 
         'blackhole_open', 'blackhole_close',
         'jetpack', 'hoverbike', 'spacecraft', 'pickup_health', 'pickup_fuel_cell',
+        'pickup_ammo', 'pickup_item', 'pickup_glowingorb',
+        'rocket_explosion', 'grenade_explosion',
+        'tentacles_rise', 'throw_glowingorb',
         'flyer_shoot', 'shard_roller_shoot', 'stingray_bomb_drop', 'lightning_shoot'
     ];
     
@@ -881,7 +938,7 @@ function switchMusicToLevel(levelName) {
     );
 }
 
-function playSyntheticSound(name, pan = 0) {
+function playSyntheticSound(name, pan = 0, distanceMultiplier = 1.0) {
     if (!audioListener || !audioListener.context) return;
     const ctx = audioListener.context;
     
@@ -902,7 +959,8 @@ function playSyntheticSound(name, pan = 0) {
     
     const now = ctx.currentTime;
     gain.gain.setValueAtTime(0, now);
-    const volume = gameSettings.sfxVolume;
+    // Multiply by the distance multiplier
+    const volume = gameSettings.sfxVolume * distanceMultiplier;
 
     if (name === 'jetpack') {
         osc.type = 'sawtooth';
@@ -958,6 +1016,83 @@ function playSyntheticSound(name, pan = 0) {
         gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
         osc.start(now);
         osc.stop(now + 0.21);
+    } else if (name === 'pickup_ammo') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(660, now + 0.05);
+        gain.gain.setValueAtTime(volume * 0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.16);
+    } else if (name === 'pickup_item') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+        gain.gain.setValueAtTime(volume * 0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.21);
+    } else if (name === 'pickup_glowingorb') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(1800, now + 0.35);
+        gain.gain.setValueAtTime(volume * 0.7, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+        osc.start(now);
+        osc.stop(now + 0.36);
+    } else if (name === 'rocket_explosion') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.linearRampToValueAtTime(10, now + 0.5);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(120, now);
+        filter.frequency.exponentialRampToValueAtTime(10, now + 0.5);
+        osc.disconnect(gain);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.gain.setValueAtTime(volume * 1.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.65);
+        osc.start(now);
+        osc.stop(now + 0.66);
+    } else if (name === 'grenade_explosion') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(20, now + 0.4);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(200, now);
+        filter.frequency.exponentialRampToValueAtTime(20, now + 0.4);
+        osc.disconnect(gain);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.gain.setValueAtTime(volume * 1.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        osc.start(now);
+        osc.stop(now + 0.51);
+    } else if (name === 'tentacles_rise') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(60, now);
+        osc.frequency.exponentialRampToValueAtTime(150, now + 0.4);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(200, now);
+        filter.Q.setValueAtTime(1.0, now);
+        osc.disconnect(gain);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.gain.setValueAtTime(volume * 1.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+        osc.start(now);
+        osc.stop(now + 0.46);
+    } else if (name === 'throw_glowingorb') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+        gain.gain.setValueAtTime(volume * 0.8, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.31);
     } else if (name === 'flyer_shoot') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(800, now);
@@ -1053,6 +1188,7 @@ function playSyntheticSound(name, pan = 0) {
 
 function playSound(name, sourcePosition = null) {
     let pan = 0;
+    let distanceMultiplier = 1.0;
     
     if (camera) {
         if (!sourcePosition) {
@@ -1090,6 +1226,28 @@ function playSound(name, sourcePosition = null) {
         if (sourcePosition) {
             const camPos = new THREE.Vector3();
             camera.getWorldPosition(camPos);
+            const dist = camPos.distanceTo(sourcePosition);
+            
+            // Calculate distance attenuation (inverse distance model)
+            const referenceDistance = 5;
+            const maxDistance = 120;
+            
+            if (dist > referenceDistance) {
+                distanceMultiplier = referenceDistance / (referenceDistance + 1.2 * (dist - referenceDistance));
+            }
+            
+            if (dist > maxDistance) {
+                distanceMultiplier = 0;
+            } else {
+                const fadeStart = maxDistance * 0.8;
+                if (dist > fadeStart) {
+                    const fadeProgress = (dist - fadeStart) / (maxDistance - fadeStart);
+                    distanceMultiplier *= (1 - fadeProgress);
+                }
+            }
+            distanceMultiplier = Math.max(0, Math.min(1, distanceMultiplier));
+
+            // Calculate stereo panning
             const dir = sourcePosition.clone().sub(camPos).normalize();
             const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()));
             pan = dir.dot(right);
@@ -1097,15 +1255,19 @@ function playSound(name, sourcePosition = null) {
         }
     }
 
+    // Optimization: If the sound is too far and completely silent, don't play it
+    if (distanceMultiplier <= 0) return;
+
     if (gameSounds[name] === 'synthetic' || !gameSounds[name]) {
-        playSyntheticSound(name, pan);
+        playSyntheticSound(name, pan, distanceMultiplier);
         return;
     }
     if (!audioListener) return;
     
     const sound = new THREE.Audio(audioListener);
     sound.setBuffer(gameSounds[name]);
-    sound.setVolume(gameSettings.sfxVolume);
+    // Scale the master SFX volume with the distance multiplier
+    sound.setVolume(gameSettings.sfxVolume * distanceMultiplier);
     
     if (pan !== 0 && audioListener.context.createStereoPanner) {
         const panner = audioListener.context.createStereoPanner();
@@ -1291,7 +1453,12 @@ function toggleXRayEffect(isActive) {
                                     Object.values(collectibles).flat().some(c => c === obj || (c && c.getObjectById && c.getObjectById(obj.id)));
 
                     if (!isDynamic) {
-                        xrayMatToApply = xrayMaterials.wall;
+                        xrayMaterials = {
+                            wall: new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.15, depthWrite: false }),
+                            enemy: new THREE.MeshBasicMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 2.0, depthWrite: false }),
+                            fuelCell: new THREE.MeshBasicMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 2.0, depthWrite: false }),
+                            spacecraft: new THREE.MeshBasicMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 2.0, depthWrite: false }),
+                        };
                     }
                 }
 
