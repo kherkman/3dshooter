@@ -499,7 +499,6 @@ function advanceIntro() {
     if (introStep === 0) {
         // Step 1: Reveal story and controls
         if (storyP) storyP.style.display = 'block';
-        if (controlsList) storyP.style.display = 'block'; // Wait, let's keep it as is
         if (controlsList) controlsList.style.display = 'block';
         if (ctaP) {
             ctaP.textContent = 'Click or Press SPACE to Comply';
@@ -1230,7 +1229,7 @@ function playSound(name, sourcePosition = null) {
             
             // Calculate distance attenuation (inverse distance model)
             const referenceDistance = 5;
-            const maxDistance = 9120; // max distance for sound set to be audible 9120 units so webaudio does not play sound (before it was 120 units)
+            const maxDistance = 120;
             
             if (dist > referenceDistance) {
                 distanceMultiplier = referenceDistance / (referenceDistance + 1.2 * (dist - referenceDistance));
@@ -1272,8 +1271,13 @@ function playSound(name, sourcePosition = null) {
     if (pan !== 0 && audioListener.context.createStereoPanner) {
         const panner = audioListener.context.createStereoPanner();
         panner.pan.setValueAtTime(pan, audioListener.context.currentTime);
+        
+        // Disconnect the default unpanned routing of THREE.Audio
+        sound.getOutput().disconnect();
+        
+        // Route the panned signal to the audioListener's input (master gain / FX chain)
         sound.getOutput().connect(panner);
-        panner.connect(audioListener.context.destination);
+        panner.connect(audioListener.getInput());
     }
     
     sound.play();
@@ -1301,10 +1305,6 @@ function animate() {
     }
 
     if (!isPaused) {
-        const prevAlienProjCount = alienProjectiles.length;
-        const prevShardProjCount = shardProjectiles.length;
-        const prevBombCount = bombs.length;
-
         updateGamepadControls(delta);
 
         if (keys['Space'] && player.hasJetpack && player.jetpackFuel > 0 && !player.canJump && player.state === 'on_foot') {
@@ -1370,19 +1370,6 @@ function animate() {
         updateDebris(delta);
         updateShellCasings(delta);
         updateHitScatters(delta);
-
-        if (alienProjectiles.length > prevAlienProjCount) {
-            const newProj = alienProjectiles[alienProjectiles.length - 1];
-            playSound('flyer_shoot', newProj.position);
-        }
-        if (shardProjectiles.length > prevShardProjCount) {
-            const newProj = shardProjectiles[shardProjectiles.length - 1];
-            playSound('shard_roller_shoot', newProj.position);
-        }
-        if (bombs.length > prevBombCount) {
-            const newBomb = bombs[bombs.length - 1];
-            playSound('stingray_bomb_drop', newBomb.position);
-        }
         
         if(keys['Tab']) updateMap();
     }
