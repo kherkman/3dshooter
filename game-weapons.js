@@ -15,6 +15,14 @@ GameData.weapons = [
             const hasMetalTex = gameSettings.texturesEnabled && window.gunMetalTexture && window.gunMetalTexture.image;
             const hasBodyTex = gameSettings.texturesEnabled && window.pistolBodyTexture && window.pistolBodyTexture.image;
 
+            // Luistin materiaali: Harmaa perusväri, pistolbody.jpg -tekstuuri VAIN tässä osassa
+            const slideMat = new THREE.MeshStandardMaterial({
+                color: hasBodyTex ? 0xffffff : 0x888888, // Harmaa perusväri ilman tekstuuria, puhtaan valkoinen tekstuurin kanssa jottei tummenna
+                map: hasBodyTex ? window.pistolBodyTexture : null,
+                metalness: 0.8,
+                roughness: 0.35
+            });
+
             const shinySilverMat = new THREE.MeshStandardMaterial({
                 color: hasMetalTex ? 0xffffff : 0xc8cecc,
                 map: hasMetalTex ? window.gunMetalTexture : null,
@@ -23,10 +31,9 @@ GameData.weapons = [
                 envMapIntensity: 1.5
             });
 
-            // Pistoolin rungolle/bodyguard-osalle valittu pistolbody.jpg -materiaali
-            const bodyMat = new THREE.MeshStandardMaterial({
-                color: hasBodyTex ? 0xffffff : (hasMetalTex ? 0xffffff : 0x5a5048),
-                map: hasBodyTex ? window.pistolBodyTexture : (hasMetalTex ? window.gunMetalTexture : null),
+            const bronzeMetalMat = new THREE.MeshStandardMaterial({
+                color: hasMetalTex ? 0xffffff : 0x5a5048,
+                map: hasMetalTex ? window.gunMetalTexture : null,
                 metalness: 0.85,
                 roughness: 0.38
             });
@@ -61,17 +68,17 @@ GameData.weapons = [
             // Slide group (rekyylianimaatiota varten)
             const slideGroup = new THREE.Group();
 
-            // A. LUISTI - ETUOSA (Rungon muotoilussa mukana)
+            // A. LUISTI - ETUOSA (Luistiosio -> slideMat)
             const slideFrontGeo = new THREE.BoxGeometry(0.22, 0.26, 0.7);
-            const slideFront = new THREE.Mesh(slideFrontGeo, bodyMat);
+            const slideFront = new THREE.Mesh(slideFrontGeo, slideMat);
             slideFront.position.set(0, 0.18, -0.2);
             slideFront.castShadow = true;
             slideFront.receiveShadow = true;
             slideGroup.add(slideFront);
 
-            // B. LUISTI - TAKAOSA
+            // B. LUISTI - TAKAOSA (Luistiosio -> slideMat)
             const slideRearGeo = new THREE.BoxGeometry(0.23, 0.28, 0.45);
-            const slideRear = new THREE.Mesh(slideRearGeo, shinySilverMat);
+            const slideRear = new THREE.Mesh(slideRearGeo, slideMat);
             slideRear.position.set(0, 0.19, 0.32);
             slideRear.castShadow = true;
             slideRear.receiveShadow = true;
@@ -149,16 +156,16 @@ GameData.weapons = [
 
             for (let i = 0; i < 8; i++) {
                 const ringGeo = new THREE.TorusGeometry(0.112, 0.005, 8, 32);
-                const ring = new THREE.Mesh(ringGeo, bodyMat);
+                const ring = new THREE.Mesh(ringGeo, bronzeMetalMat);
                 ring.position.z = -0.3 + i * 0.08;
                 suppressorGroup.add(ring);
             }
             suppressorGroup.position.set(0, 0.22, -0.92);
             group.add(suppressorGroup);
 
-            // F. RUNKO & ALAKISKO (Pääasiallinen pistolbody.jpg -kohde)
+            // F. RUNKO & ALAKISKO
             const frameGeo = new THREE.BoxGeometry(0.2, 0.18, 0.75);
-            const frame = new THREE.Mesh(frameGeo, bodyMat);
+            const frame = new THREE.Mesh(frameGeo, bronzeMetalMat);
             frame.position.set(0, 0.02, -0.12);
             group.add(frame);
 
