@@ -106,7 +106,6 @@ function pushPlayerSafely(pushX, pushZ) {
     const playerSize = new THREE.Vector3(0.6, playerHeight, 0.6);
     const testBox = new THREE.Box3();
 
-    // Tarkistetaan X-akselin tönäisy seinien varalta
     if (Math.abs(pushX) > 0.0001) {
         testBox.setFromCenterAndSize(
             playerObject.position.clone().add(new THREE.Vector3(pushX, playerHeight / 2, 0)),
@@ -119,7 +118,6 @@ function pushPlayerSafely(pushX, pushZ) {
         }
     }
 
-    // Tarkistetaan Z-akselin tönäisy seinien varalta
     if (Math.abs(pushZ) > 0.0001) {
         testBox.setFromCenterAndSize(
             playerObject.position.clone().add(new THREE.Vector3(0, playerHeight / 2, pushZ)),
@@ -966,20 +964,21 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
                 for (let instanceId = 0; instanceId < child.count; instanceId++) {
                     const center = child.userData.windowCenters[instanceId];
                     const expandedBox = child.userData.windowBoxes[instanceId];
+                    const rotY = child.userData.windowRotations ? child.userData.windowRotations[instanceId] : 0;
                     cityWindows.push({
                         isInstanced: true,
                         mesh: child,
                         instanceId: instanceId,
                         isBroken: false,
                         expandedBox: expandedBox,
-                        center: center
+                        center: center,
+                        rotationY: rotY
                     });
                 }
             } else if (child.isMesh && child.userData && child.userData.isWindow) {
                 child.userData.isBroken = false;
                 const box = new THREE.Box3().setFromObject(child);
                 box.expandByScalar(0.2);
-                child.userData.expandedBox = box;
                 child.userData.center = new THREE.Vector3();
                 box.getCenter(child.userData.center);
 
@@ -988,7 +987,8 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
                     mesh: child,
                     isBroken: false,
                     expandedBox: box,
-                    center: child.userData.center
+                    center: child.userData.center,
+                    rotationY: child.rotation.y
                 });
             }
         });
@@ -1085,7 +1085,7 @@ function loadSounds() {
         'rocket_explosion', 'grenade_explosion',
         'tentacles_rise', 'throw_glowingorb',
         'flyer_shoot', 'shard_roller_shoot', 'stingray_bomb_drop', 'lightning_shoot',
-        'glass_break', 'explosion'
+        'glass_break', 'explosion', 'domeshoot'
     ];
     
     backgroundMusic = new Audio('music_intro.mp3');
@@ -1355,10 +1355,15 @@ function updateFuelCellPulseSpheres(delta) {
     }
 }
 
-// Automaattisen hissin päivitys ja pelaajan kannattelulogiikka
+// Automaattisen hissin päivitys, alatasanteen 3 sekunnin pysähdys ja pelaajan kannattelulogiikka
 function updateElevator(delta) {
     const elData = levelObjects.elevatorData;
     if (!elData || !elData.mesh) return;
+
+    if (elData.waitTime && elData.waitTime > 0) {
+        elData.waitTime -= delta;
+        return;
+    }
 
     const oldY = elData.mesh.position.y;
     elData.mesh.position.y += elData.speed * elData.direction * delta;
@@ -1369,6 +1374,7 @@ function updateElevator(delta) {
     } else if (elData.mesh.position.y <= elData.minY) {
         elData.mesh.position.y = elData.minY;
         elData.direction = 1;
+        elData.waitTime = 3.0; // Pysähdytään pohjalle aina tasan 3 sekunniksi
     }
 
     const actualDeltaY = elData.mesh.position.y - oldY;
@@ -1377,7 +1383,6 @@ function updateElevator(delta) {
         elData.collider.setFromObject(elData.mesh);
     }
 
-    // Pelaajan siirtäminen hissin mukana kun hän seisoo hissitasolla
     if (player.state === 'on_foot' && playerObject) {
         const dx = playerObject.position.x - elData.mesh.position.x;
         const dz = playerObject.position.z - elData.mesh.position.z;
@@ -1423,7 +1428,6 @@ function animate() {
     if (!isPaused) {
         updateGamepadControls(delta);
 
-        // Päivitetään Crystal-kentän hissi
         if (currentLevel === 'crystal' && levelObjects.elevatorData) {
             updateElevator(delta);
         }
@@ -1573,7 +1577,10 @@ function animate() {
         
         updateGlassShards(delta);
 
-        if(keys['Tab']) updateMap();
+        const mapContainer = document.getElementById('map-container');
+        if (keys['Tab'] || (mapContainer && mapContainer.style.display === 'flex')) {
+            updateMap();
+        }
     } else {
         if (hoverbikeSoundActive || hoverbikeSound) {
             hoverbikeSoundActive = false;
@@ -1809,7 +1816,7 @@ function breakWindow(windowRef, hitPosition) {
         });
         const brokenMesh = new THREE.Mesh(brokenGeo, brokenMat);
         brokenMesh.position.copy(windowRef.center);
-        if (windowRef.rotationY) brokenMesh.rotation.y = windowRef.rotationY;
+        if (windowRef.rotationY !== undefined) brokenMesh.rotation.y = windowRef.rotationY;
         scene.add(brokenMesh);
     } else {
         const windowMesh = windowRef.mesh;
