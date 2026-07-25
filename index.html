@@ -73,8 +73,10 @@
                     <input type="range" id="sfx-volume" class="volume-slider" min="0" max="1" step="0.05">
                     <p><label for="music-volume">Music Volume</label></p>
                     <input type="range" id="music-volume" class="volume-slider" min="0" max="1" step="0.05">
-                    <p><label for="sbs-separation">3D Camera Separation</label></p>
-                    <input type="range" id="sbs-separation" class="volume-slider" min="0.001" max="0.20" step="0.005" value="0.064">
+                    <p><label for="sbs-separation">3D Camera Separation (IPD)</label></p>
+                    <input type="range" id="sbs-separation" class="volume-slider" min="0.001" max="0.20" step="0.001" value="0.064">
+                    <p><label for="sbs-image-offset">3D Screen Image Offset</label></p>
+                    <input type="range" id="sbs-image-offset" class="volume-slider" min="-100" max="100" step="1" value="0">
                 </div>
             </div>
             <div class="options-buttons">
@@ -148,17 +150,17 @@
                 <span>GAMEPAD CONTROLS</span>
                 <button id="close-gamepad-controls-x" class="header-close-button" onclick="document.getElementById('gamepad-controls-menu').style.display='none'">&times;</button>
             </h1>
-            
+
             <!-- GRAAFINEN GAMEPAD-DIAGRAMMI SUURENNETULLA FONTTIKOLLA -->
             <div id="gamepad-diagram-container">
                 <svg viewBox="0 0 950 240" class="gamepad-svg">
                     <!-- Gamepad Runko -->
                     <path d="M 320 60 Q 360 50 440 50 Q 520 50 560 60 C 610 70 670 120 650 210 C 635 245 580 240 540 190 Q 490 170 440 170 Q 390 170 340 190 C 300 240 245 245 230 210 C 210 120 270 70 320 60 Z" fill="#181410" stroke="#ffaa00" stroke-width="3"/>
-                    
+
                     <!-- Vasen Tatti -->
                     <circle cx="350" cy="150" r="26" fill="#111" stroke="#ffaa00" stroke-width="2"/>
                     <circle cx="350" cy="150" r="16" fill="#333" stroke="#ff8800" stroke-width="1"/>
-                    
+
                     <!-- Oikea Tatti -->
                     <circle cx="530" cy="150" r="26" fill="#111" stroke="#ffaa00" stroke-width="2"/>
                     <circle cx="530" cy="150" r="16" fill="#333" stroke="#ff8800" stroke-width="1"/>
@@ -169,7 +171,7 @@
                     <!-- Napit (Y, X, A, B) -->
                     <circle cx="550" cy="85" r="10" fill="#222" stroke="#00ffff" stroke-width="2"/>
                     <text x="550" y="89" font-family="Courier New" font-weight="bold" font-size="11" fill="#00ffff" text-anchor="middle">Y</text>
-                    
+
                     <circle cx="532" cy="103" r="10" fill="#222" stroke="#ff3300" stroke-width="2"/>
                     <text x="532" y="107" font-family="Courier New" font-weight="bold" font-size="11" fill="#ff3300" text-anchor="middle">X</text>
 
