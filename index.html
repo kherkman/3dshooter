@@ -149,112 +149,99 @@
                 <button id="close-gamepad-controls-x" class="header-close-button" onclick="document.getElementById('gamepad-controls-menu').style.display='none'">&times;</button>
             </h1>
             
-            <!-- GRAAFINEN GAMEPAD-DIAGRAMMI -->
+            <!-- GRAAFINEN GAMEPAD-DIAGRAMMI SUURENNETULLA FONTTIKOLLA -->
             <div id="gamepad-diagram-container">
-                <svg viewBox="0 0 600 230" class="gamepad-svg">
+                <svg viewBox="0 0 950 240" class="gamepad-svg">
                     <!-- Gamepad Runko -->
-                    <path d="M 180 60 Q 220 50 300 50 Q 380 50 420 60 C 470 70 530 120 510 210 C 495 245 440 240 400 190 Q 350 170 300 170 Q 250 170 200 190 C 160 240 105 245 90 210 C 70 120 130 70 180 60 Z" fill="#181410" stroke="#ffaa00" stroke-width="3"/>
+                    <path d="M 320 60 Q 360 50 440 50 Q 520 50 560 60 C 610 70 670 120 650 210 C 635 245 580 240 540 190 Q 490 170 440 170 Q 390 170 340 190 C 300 240 245 245 230 210 C 210 120 270 70 320 60 Z" fill="#181410" stroke="#ffaa00" stroke-width="3"/>
                     
                     <!-- Vasen Tatti -->
-                    <circle cx="210" cy="150" r="26" fill="#111" stroke="#ffaa00" stroke-width="2"/>
-                    <circle cx="210" cy="150" r="16" fill="#333" stroke="#ff8800" stroke-width="1"/>
+                    <circle cx="350" cy="150" r="26" fill="#111" stroke="#ffaa00" stroke-width="2"/>
+                    <circle cx="350" cy="150" r="16" fill="#333" stroke="#ff8800" stroke-width="1"/>
                     
                     <!-- Oikea Tatti -->
-                    <circle cx="390" cy="150" r="26" fill="#111" stroke="#ffaa00" stroke-width="2"/>
-                    <circle cx="390" cy="150" r="16" fill="#333" stroke="#ff8800" stroke-width="1"/>
+                    <circle cx="530" cy="150" r="26" fill="#111" stroke="#ffaa00" stroke-width="2"/>
+                    <circle cx="530" cy="150" r="16" fill="#333" stroke="#ff8800" stroke-width="1"/>
 
                     <!-- D-Pad -->
-                    <path d="M 175 100 H 185 V 90 H 195 V 100 H 205 V 110 H 195 V 120 H 185 V 110 H 175 Z" fill="#333" stroke="#ffaa00" stroke-width="2"/>
+                    <path d="M 315 100 H 325 V 90 H 335 V 100 H 345 V 110 H 335 V 120 H 325 V 110 H 315 Z" fill="#333" stroke="#ffaa00" stroke-width="2"/>
 
                     <!-- Napit (Y, X, A, B) -->
-                    <circle cx="410" cy="85" r="9" fill="#222" stroke="#00ffff" stroke-width="2"/>
-                    <text x="410" y="88" font-family="Courier New" font-weight="bold" font-size="10" fill="#00ffff" text-anchor="middle">Y</text>
+                    <circle cx="550" cy="85" r="10" fill="#222" stroke="#00ffff" stroke-width="2"/>
+                    <text x="550" y="89" font-family="Courier New" font-weight="bold" font-size="11" fill="#00ffff" text-anchor="middle">Y</text>
                     
-                    <circle cx="392" cy="103" r="9" fill="#222" stroke="#ff3300" stroke-width="2"/>
-                    <text x="392" y="106" font-family="Courier New" font-weight="bold" font-size="10" fill="#ff3300" text-anchor="middle">X</text>
+                    <circle cx="532" cy="103" r="10" fill="#222" stroke="#ff3300" stroke-width="2"/>
+                    <text x="532" y="107" font-family="Courier New" font-weight="bold" font-size="11" fill="#ff3300" text-anchor="middle">X</text>
 
-                    <circle cx="410" cy="121" r="9" fill="#222" stroke="#00ff00" stroke-width="2"/>
-                    <text x="410" y="124" font-family="Courier New" font-weight="bold" font-size="10" fill="#00ff00" text-anchor="middle">A</text>
+                    <circle cx="550" cy="121" r="10" fill="#222" stroke="#00ff00" stroke-width="2"/>
+                    <text x="550" y="125" font-family="Courier New" font-weight="bold" font-size="11" fill="#00ff00" text-anchor="middle">A</text>
 
-                    <circle cx="428" cy="103" r="9" fill="#222" stroke="#ffcc00" stroke-width="2"/>
-                    <text x="428" y="106" font-family="Courier New" font-weight="bold" font-size="10" fill="#ffcc00" text-anchor="middle">B</text>
+                    <circle cx="568" cy="103" r="10" fill="#222" stroke="#ffcc00" stroke-width="2"/>
+                    <text x="568" y="107" font-family="Courier New" font-weight="bold" font-size="11" fill="#ffcc00" text-anchor="middle">B</text>
 
                     <!-- Olkanapit (LB/RB) -->
-                    <rect x="150" y="30" width="65" height="16" rx="4" fill="#333" stroke="#ffaa00" stroke-width="2"/>
-                    <text x="182" y="42" font-family="Courier New" font-weight="bold" font-size="10" fill="#ffaa00" text-anchor="middle">LB / L1</text>
+                    <rect x="290" y="28" width="65" height="18" rx="4" fill="#333" stroke="#ffaa00" stroke-width="2"/>
+                    <text x="322" y="41" font-family="Courier New" font-weight="bold" font-size="11" fill="#ffaa00" text-anchor="middle">LB / L1</text>
 
-                    <rect x="385" y="30" width="65" height="16" rx="4" fill="#333" stroke="#ffaa00" stroke-width="2"/>
-                    <text x="417" y="42" font-family="Courier New" font-weight="bold" font-size="10" fill="#ffaa00" text-anchor="middle">RB / R1</text>
+                    <rect x="525" y="28" width="65" height="18" rx="4" fill="#333" stroke="#ffaa00" stroke-width="2"/>
+                    <text x="557" y="41" font-family="Courier New" font-weight="bold" font-size="11" fill="#ffaa00" text-anchor="middle">RB / R1</text>
 
                     <!-- Liipaisimet (LT/RT) -->
-                    <rect x="160" y="8" width="45" height="15" rx="3" fill="#333" stroke="#ff3300" stroke-width="2"/>
-                    <text x="182" y="19" font-family="Courier New" font-weight="bold" font-size="9" fill="#ff3300" text-anchor="middle">LT / L2</text>
+                    <rect x="300" y="6" width="45" height="16" rx="3" fill="#333" stroke="#ff3300" stroke-width="2"/>
+                    <text x="322" y="18" font-family="Courier New" font-weight="bold" font-size="10" fill="#ff3300" text-anchor="middle">LT / L2</text>
 
-                    <rect x="395" y="8" width="45" height="15" rx="3" fill="#222" stroke="#ff3300" stroke-width="2"/>
-                    <text x="417" y="19" font-family="Courier New" font-weight="bold" font-size="9" fill="#ff3300" text-anchor="middle">RT / R2</text>
+                    <rect x="535" y="6" width="45" height="16" rx="3" fill="#222" stroke="#ff3300" stroke-width="2"/>
+                    <text x="557" y="18" font-family="Courier New" font-weight="bold" font-size="10" fill="#ff3300" text-anchor="middle">RT / R2</text>
 
-                    <!-- Osoitinviivat ja Tekstit -->
-                    <!-- LT: INTERACT / ACTION -->
-                    <polyline points="160,15 110,12 70,12" fill="none" stroke="#ff3300" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <text x="65" y="15" font-family="Courier New" font-weight="bold" font-size="10" fill="#ff3300" text-anchor="end">LT: INTERACT / ACTION</text>
+                    <!-- Osoitinviivat ja Tekstit (Vasen Puoli - Fontti 13.5px) -->
+                    <polyline points="300,14 250,12 210,12" fill="none" stroke="#ff3300" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="205" y="16" font-family="Courier New" font-weight="bold" font-size="13.5" fill="#ff3300" text-anchor="end">LT: INTERACT / ACTION</text>
 
-                    <!-- RT: SHOOT -->
-                    <polyline points="440,15 480,12 530,12" fill="none" stroke="#ff3300" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <text x="535" y="15" font-family="Courier New" font-weight="bold" font-size="11" fill="#ff3300" text-anchor="start">RT: SHOOT</text>
+                    <polyline points="290,37 250,37 210,37" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="205" y="41" font-family="Courier New" font-weight="bold" font-size="13.5" fill="#ffaa00" text-anchor="end">LB: PREV WEAPON</text>
 
-                    <!-- RB: NEXT WEAPON -->
-                    <polyline points="450,38 490,38 530,38" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <text x="535" y="41" font-family="Courier New" font-size="10" fill="#ffaa00" text-anchor="start">RB: NEXT WEAPON</text>
+                    <polyline points="315,105 250,105 210,105" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="205" y="109" font-family="Courier New" font-weight="bold" font-size="13.5" fill="#ffaa00" text-anchor="end">D-PAD: MENU NAV</text>
 
-                    <!-- LB: PREV WEAPON -->
-                    <polyline points="150,38 110,38 70,38" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <text x="65" y="41" font-family="Courier New" font-size="10" fill="#ffaa00" text-anchor="end">LB: PREV WEAPON</text>
+                    <polyline points="324,150 260,150 210,150" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="205" y="154" font-family="Courier New" font-weight="bold" font-size="13.5" fill="#ffaa00" text-anchor="end">L-STICK: MOVE / MENU NAV</text>
 
-                    <!-- LEFT STICK: MOVE -->
-                    <polyline points="184,150 120,150 70,150" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <text x="65" y="153" font-family="Courier New" font-weight="bold" font-size="10" fill="#ffaa00" text-anchor="end">L-STICK: MOVE</text>
+                    <!-- Osoitinviivat ja Tekstit (Oikea Puoli - Fontti 13.5px) -->
+                    <polyline points="580,14 625,12 670,12" fill="none" stroke="#ff3300" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="675" y="16" font-family="Courier New" font-weight="bold" font-size="13.5" fill="#ff3300" text-anchor="start">RT: SHOOT</text>
 
-                    <!-- D-PAD: INV NAV -->
-                    <polyline points="175,105 110,105 70,105" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <text x="65" y="108" font-family="Courier New" font-size="10" fill="#ffaa00" text-anchor="end">D-PAD: INV NAV</text>
+                    <polyline points="590,37 630,37 670,37" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="675" y="41" font-family="Courier New" font-weight="bold" font-size="13.5" fill="#ffaa00" text-anchor="start">RB: NEXT WEAPON</text>
 
-                    <!-- RIGHT STICK: LOOK -->
-                    <polyline points="416,150 480,150 530,150" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <text x="535" y="153" font-family="Courier New" font-weight="bold" font-size="10" fill="#ffaa00" text-anchor="start">R-STICK: LOOK / AIM</text>
+                    <polyline points="560,85 615,75 670,75" fill="none" stroke="#00ffff" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="675" y="79" font-family="Courier New" font-weight="bold" font-size="13.5" fill="#00ffff" text-anchor="start">Y / △: X-RAY GOGGLES</text>
 
-                    <!-- Y / TRIANGLE: INV -->
-                    <polyline points="419,85 470,75 530,75" fill="none" stroke="#00ffff" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <text x="535" y="78" font-family="Courier New" font-weight="bold" font-size="10" fill="#00ffff" text-anchor="start">Y / △: INVENTORY</text>
+                    <polyline points="578,103 625,100 670,100" fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="675" y="104" font-family="Courier New" font-weight="bold" font-size="13.5" fill="#ffcc00" text-anchor="start">B / ○: INVENTORY / CLOSE</text>
 
-                    <!-- B / CIRCLE: CLOSE -->
-                    <polyline points="437,103 480,100 530,100" fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <text x="535" y="103" font-family="Courier New" font-size="10" fill="#ffcc00" text-anchor="start">B / ○: CLOSE WINDOWS</text>
+                    <polyline points="560,121 615,125 670,125" fill="none" stroke="#00ff00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="675" y="129" font-family="Courier New" font-weight="bold" font-size="13.5" fill="#00ff00" text-anchor="start">A / ✕: JUMP / JETPACK / SELECT</text>
 
-                    <!-- A / CROSS: JUMP -->
-                    <polyline points="419,121 470,125 530,125" fill="none" stroke="#00ff00" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <text x="535" y="128" font-family="Courier New" font-size="10" fill="#00ff00" text-anchor="start">A / ✕: JUMP / JETPACK</text>
-
-                    <!-- X / SQUARE: MAP -->
-                    <polyline points="383,103 340,90 300,90" fill="none" stroke="#ff3300" stroke-width="1.5" stroke-dasharray="3,3"/>
-                    <circle cx="300" cy="90" r="3" fill="#ff3300"/>
-                    <text x="300" y="82" font-family="Courier New" font-weight="bold" font-size="10" fill="#ff3300" text-anchor="middle">X / □: MAP</text>
+                    <polyline points="522,103 480,90 440,90" fill="none" stroke="#ff3300" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <circle cx="440" cy="90" r="3" fill="#ff3300"/>
+                    <text x="440" y="81" font-family="Courier New" font-weight="bold" font-size="13.5" fill="#ff3300" text-anchor="middle">X / □: MAP</text>
                 </svg>
             </div>
 
             <div class="options-grid" style="margin-top: 15px;">
                 <div>
                     <h2>MOVEMENT & LOOK</h2>
-                    <p><strong>Move:</strong> Left Stick</p>
+                    <p><strong>Move:</strong> Left Stick / D-Pad</p>
                     <p><strong>Look / Aim:</strong> Right Stick</p>
-                    <p><strong>Jump / Jetpack:</strong> Button A / Cross (Button 0)</p>
-                    <p><strong>Close Windows:</strong> Button B / Circle / O (Button 1)</p>
+                    <p><strong>Jump / Jetpack / Select:</strong> Button A / Cross (Button 0)</p>
+                    <p><strong>Inventory / Close:</strong> Button B / Circle (Button 1)</p>
                 </div>
                 <div>
                     <h2>ACTIONS & NAVIGATION</h2>
                     <p><strong>Interact / Action:</strong> Left Trigger / LT / L2 (Button 6)</p>
                     <p><strong>Shoot:</strong> Right Trigger / RT / R2 (Button 7)</p>
                     <p><strong>Map:</strong> Button X / Square (Button 2)</p>
-                    <p><strong>Inventory (INV):</strong> Button Y / Triangle (Button 3)</p>
+                    <p><strong>X-Ray Goggles:</strong> Button Y / Triangle (Button 3)</p>
                     <p><strong>Previous Weapon:</strong> Left Bumper / LB / L1 (Button 4)</p>
                     <p><strong>Next Weapon:</strong> Right Bumper / RB / R1 (Button 5)</p>
                 </div>
