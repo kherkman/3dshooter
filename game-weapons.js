@@ -558,7 +558,6 @@ GameData.weapons = [
                     gun.quaternion.slerpQuaternions(windDownRot, swingUpRot, alpha);
 
                     if (!anim.hasHit && alpha > 0.1 && alpha < 0.95) {
-                        // Pelaajan koordinaatit ja rintamasuunta
                         const pPos = playerObject ? playerObject.position : new THREE.Vector3();
                         const pForward = new THREE.Vector3(0, 0, -1);
                         if (playerObject) {
@@ -572,7 +571,7 @@ GameData.weapons = [
                         const meleeReach = 6.0; // Reilu lyöntiulottuvuus (6 metriä)
                         let hitCount = 0;
 
-                        // 1. VIHOLLISET (Cleave-iskulla voi osua kaikkiin edessä oleviin lähietäisyydellä)
+                        // 1. VIHOLLISET
                         for (let j = aliens.length - 1; j >= 0; j--) {
                             const a = aliens[j];
                             if (a.userData.state === 'dying') continue;
@@ -634,7 +633,7 @@ GameData.weapons = [
                             }
                         }
 
-                        // 2. CRYSTAL BRAIN / TORNIN KONE (LÄHIETÄISYYS)
+                        // 2. CRYSTAL BRAIN / TORNIN KONE
                         if (typeof buildingColliders !== 'undefined') {
                             const axeHitPos = pPos.clone().add(pForward.clone().multiplyScalar(2.5));
                             for (let c of buildingColliders) {
@@ -652,10 +651,31 @@ GameData.weapons = [
                             }
                         }
 
-                        // 3. AUTOT JA KASVILLISUUS
+                        // 3. PROPIT, AUTOT, IKKUNAT JA KASVILLISUUS
                         let hitProp = false;
+                        const hitPos = pPos.clone().add(pForward.clone().multiplyScalar(2.5));
+
+                        // 3a. Hajoavat propit (Roskikset, Katuvalot)
+                        if (typeof buildingColliders !== 'undefined') {
+                            for (let j = buildingColliders.length - 1; j >= 0; j--) {
+                                const c = buildingColliders[j];
+                                if (c && c.userData && c.userData.isDestructible && !c.userData.isDestroyed) {
+                                    const cCenter = new THREE.Vector3();
+                                    if (c.getCenter) c.getCenter(cCenter);
+                                    else if (c.userData.mesh) c.userData.mesh.getWorldPosition(cCenter);
+                                    
+                                    if (cCenter.distanceTo(hitPos) < 4.0) {
+                                        if (typeof destroyProp === 'function') {
+                                            destroyProp(c);
+                                        }
+                                        hitProp = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3b. Autot
                         if (window.cityCars) {
-                            const hitPos = pPos.clone().add(pForward.clone().multiplyScalar(2.5));
                             for (let c of window.cityCars) {
                                 if (c.mesh && c.mesh.position.distanceTo(hitPos) < 4.0) {
                                     if (typeof damageCarPart === 'function') {
@@ -667,8 +687,23 @@ GameData.weapons = [
                             }
                         }
 
+                        // 3c. Ikkunat
+                        if (typeof cityWindows !== 'undefined' && cityWindows.length > 0) {
+                            for (let i = 0; i < cityWindows.length; i++) {
+                                const win = cityWindows[i];
+                                if (win.isBroken) continue;
+                                const winCenter = win.center || (win.expandedBox ? win.expandedBox.getCenter(new THREE.Vector3()) : null);
+                                if (winCenter && winCenter.distanceTo(hitPos) < 4.5) {
+                                    if (typeof breakWindow === 'function') {
+                                        breakWindow(win, hitPos);
+                                    }
+                                    hitProp = true;
+                                }
+                            }
+                        }
+
+                        // 3d. Kasvillisuus
                         if (vegetation) {
-                            const hitPos = pPos.clone().add(pForward.clone().multiplyScalar(2.5));
                             for (let j = vegetation.length - 1; j >= 0; j--) {
                                 const v = vegetation[j];
                                 if (v.position.distanceTo(hitPos) < 3.5) {
@@ -1227,7 +1262,6 @@ function updateShellCasings(delta) {
         s.userData.velocity.y -= GRAVITY * 0.6 * delta; 
         s.position.add(s.userData.velocity.clone().multiplyScalar(delta)); 
         
-        // KORJATTU: Luetaan userData.spin eika virheellista s.spin
         if (s.userData.spin) {
             s.rotation.x += s.userData.spin.x * delta; 
             s.rotation.y += s.userData.spin.y * delta; 
