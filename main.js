@@ -672,6 +672,7 @@ function advanceIntro() {
 
     const storyP = instructions.querySelector('p');
     const controlsList = instructions.querySelector('.controls-list-intro');
+    const introButtons = instructions.querySelector('#intro-buttons');
     const ctaP = Array.from(instructions.querySelectorAll('p')).find(p => p.textContent.includes('Comply') || p.textContent.includes('SPACE') || p.textContent.includes('Mission'));
 
     if (!hasInteracted) {
@@ -691,6 +692,7 @@ function advanceIntro() {
     if (introStep === 0) {
         if (storyP) storyP.style.display = 'block';
         if (controlsList) controlsList.style.display = 'block';
+        if (introButtons) introButtons.style.display = 'flex';
         if (ctaP) {
             ctaP.textContent = 'Click or Press SPACE to Comply';
         }
@@ -901,9 +903,11 @@ function loadLevel(levelName, isInitialLoad = false, isLanding = false) {
             if (instructions) {
                 const storyP = instructions.querySelector('p');
                 const controlsList = instructions.querySelector('.controls-list-intro');
+                const introButtons = instructions.querySelector('#intro-buttons');
                 const ctaP = Array.from(instructions.querySelectorAll('p')).find(p => p.textContent.includes('Comply') || p.textContent.includes('SPACE'));
                 if (storyP) storyP.style.display = 'none';
                 if (controlsList) controlsList.style.display = 'none';
+                if (introButtons) introButtons.style.display = 'none';
                 if (ctaP) {
                     ctaP.textContent = 'Click or Press SPACE to Reveal Mission';
                 }
