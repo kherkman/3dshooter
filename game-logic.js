@@ -8,6 +8,15 @@
 const tempObjCenter = new THREE.Vector3();
 const tempColCenter = new THREE.Vector3();
 
+// Optimointi: Materiaalien välimuisti hitScatter-partikkeleille estämään shader-kääntöviiveet ja FPS-pätkimisen
+const scatterMaterialCache = new Map();
+function getScatterMaterial(colorHex) {
+    if (!scatterMaterialCache.has(colorHex)) {
+        scatterMaterialCache.set(colorHex, new THREE.MeshBasicMaterial({ color: colorHex }));
+    }
+    return scatterMaterialCache.get(colorHex);
+}
+
 /**
  * Checks if a given Box3 intersects with any world colliders,
  * handling Box3 colliders, Mesh colliders, destructible props, cars, and Crystal Brain.
@@ -133,9 +142,6 @@ function createPurpleTriangleDebris(position) {
 
 /**
  * Vahingoittaa Crystal-kentän tornin huipulla olevaa kristallikonetta/aivoja.
- * Tuhoutuessaan se pudottaa koneen yläpuolella leijuvan Fuel Cellin alas tornin tasanteelle,
- * pysäyttää savun ja poistaa kaikki olemassa olevat purppurat savipartikkelit välittömästi,
- * synnyttää lentäviä purppuroita kolmiokappaleita ja laukaisee näyttävän monivaiheisen sarjaräjähdyksen.
  * @param {THREE.Box3} collider
  * @param {THREE.Vector3} hitPos
  * @param {number} damageAmount
@@ -143,7 +149,6 @@ function createPurpleTriangleDebris(position) {
 function damageCrystalBrain(collider, hitPos, damageAmount = 10) {
     if (!collider || !collider.userData || collider.userData.isDestroyed) return;
     
-    // Vähennetään kestävyyttä asekohtaisen vahingon verran
     collider.userData.health -= damageAmount;
 
     if (typeof createHitScatter === 'function') {
@@ -153,13 +158,11 @@ function damageCrystalBrain(collider, hitPos, damageAmount = 10) {
     if (collider.userData.health <= 0) {
         collider.userData.isDestroyed = true;
 
-        // Pysäytetään purppuran savun synnyttäminen välittömästi
         if (collider.userData.smokeInterval) {
             clearInterval(collider.userData.smokeInterval);
             collider.userData.smokeInterval = null;
         }
 
-        // Poistetaan kaikki ilmassa jo leijuvat purppurat savipartikkelit heti
         if (typeof smokeParticles !== 'undefined') {
             for (let i = smokeParticles.length - 1; i >= 0; i--) {
                 if (smokeParticles[i].isPurpleSmoke) {
@@ -177,17 +180,14 @@ function damageCrystalBrain(collider, hitPos, damageAmount = 10) {
             scene.remove(collider.userData.mesh);
         }
 
-        // Luodaan suuria purppuroita kolmiokappaleita lentämään koneen tuhoutuessa
         createPurpleTriangleDebris(hitPos);
 
-        // Siirretään koneen yläpuolella leijuva Fuel Cell alas tornin tasanteelle poimittavaksi
         const fcRef = collider.userData.fuelCellRef;
         if (fcRef && fcRef.parent) {
             fcRef.position.copy(collider.userData.towerTopPos || hitPos);
             fcRef.userData.isFloatingAboveBrain = false;
             fcRef.userData.fixedPosition = false;
         } else {
-            // Fallback: Luodaan uusi Fuel Cell jos referenssiä ei löytynyt
             const itemData = GameData.items.fuel_cell;
             if (itemData) {
                 const fcGroup = itemData.model();
@@ -199,7 +199,6 @@ function damageCrystalBrain(collider, hitPos, damageAmount = 10) {
             }
         }
 
-        // Pitkäkestoinen ja monivaiheinen sarjaräjähdysefekti (2,5 sekuntia)
         const centerPos = hitPos.clone();
         for (let i = 0; i < 8; i++) {
             setTimeout(() => {
@@ -285,6 +284,7 @@ function damageCarPart(carGroup, hitPos) {
 /**
  * Destroys a destructible prop (Trash can or Street light),
  * triggers a shard debris effect and explosion sound, and drops contained items.
+ * Optimized to prevent stutter by using shared geometry and materials.
  * @param {THREE.Box3} collider The collider of the destructible prop.
  */
 function destroyProp(collider) {
@@ -304,12 +304,12 @@ function destroyProp(collider) {
     const isTrash = collider.userData.propType === 'trash_can';
     const color = isTrash ? 0x1e6b27 : 0xffea88;
 
-    if (typeof createGlassShards === 'function') {
-        createGlassShards(pos);
-    }
+    // Luodaan optimoitu kipinäsiru-efekti ilman muistia rasittavaa lasi-siraleihiä
     if (typeof createHitScatter === 'function') {
         createHitScatter(pos, color);
     }
+
+    // ÄÄNIKORJAUS: Katuvalon ja roskiksen tuhoamisesta kuuluu aina explosion.mp3
     if (typeof playSound === 'function') {
         playSound('explosion', pos);
     }
@@ -387,14 +387,12 @@ function spawnItem(itemKey) {
     const itemData = GameData.items[itemKey];
     if (!itemData) return;
 
-    // --- SPECIAL SPAWN LOGIC for City Fuel Cell ---
     if (itemKey === 'fuel_cell' && currentLevel === 'city') {
         if (collectibles.fuelCells.length >= 1) {
             return;
         }
     }
 
-    // --- SPECIAL SPAWN LOGIC for Volcanic Fuel Cells ---
     if (itemKey === 'fuel_cell' && currentLevel === 'volcanic' && levelObjects.pyramidTopPosition) {
         const group = itemData.model();
         const spawnData = GameData.items.fuel_cell;
@@ -416,7 +414,6 @@ function spawnItem(itemKey) {
         return;
     }
     
-    // --- SPECIAL SPAWN LOGIC for Crystal Maze Fuel Cell ---
     if (itemKey === 'fuel_cell' && currentLevel === 'crystal') {
         const hasMazeFuelCell = collectibles.fuelCells.some(fc => !fc.userData.isFloatingAboveBrain);
         if (!hasMazeFuelCell && levelObjects.mazeCenter) {
@@ -431,7 +428,6 @@ function spawnItem(itemKey) {
         return;
     }
 
-    // --- SPECIAL SPAWN LOGIC for Ice Castle Fuel Cell ---
     if (itemKey === 'fuel_cell' && currentLevel === 'ice') {
         if (levelObjects.castleTowerTopPosition && collectibles.fuelCells.length === 0) {
             const group = itemData.model();
@@ -527,15 +523,20 @@ function spawnMotorcycle(position) {
     scene.add(motorcycle);
 }
 
+/**
+ * Optimoitu kipinäsiralehtikokoelma osumille ja proppirikoille.
+ * Käyttää jaettua geometriaa ja materiaalien välimuistia estämään FPS-pätkimisen.
+ */
 function createHitScatter(position, color = 0x888888) {
-    const n = Math.floor(Math.random() * 20) + 25;
-    const g = new THREE.SphereGeometry(0.05, 4, 3);
-    const m = new THREE.MeshStandardMaterial({ color: color, roughness: 0.8 });
+    const n = 12; // Maltillisempi partikkelimäärä ylläpitämään 60 FPS
+    const geo = (typeof sharedDebrisGeometry !== 'undefined' && sharedDebrisGeometry) ? sharedDebrisGeometry : new THREE.SphereGeometry(0.05, 4, 3);
+    const mat = getScatterMaterial(color);
+
     for (let i = 0; i < n; i++) {
-        const s = new THREE.Mesh(g, m);
+        const s = new THREE.Mesh(geo, mat);
         s.position.copy(position);
         const v = new THREE.Vector3( (Math.random() - 0.5) * 6, Math.random() * 4 + 2, (Math.random() - 0.5) * 6 );
-        hitScatters.push({ mesh: s, velocity: v, lifetime: 0.5 });
+        hitScatters.push({ mesh: s, velocity: v, lifetime: 0.4 });
         scene.add(s);
     }
 }
@@ -568,7 +569,6 @@ function createExplosion(position, radius) {
         });
     }
 
-    // TARKISTETAAN KRISTALLIKONE (Crystal Brain) RÄJÄHDYSSÄTEELTÄ
     for (let i = 0; i < buildingColliders.length; i++) {
         const c = buildingColliders[i];
         if (c.userData && c.userData.isCrystalBrain && !c.userData.isDestroyed) {
