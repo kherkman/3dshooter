@@ -23,6 +23,13 @@
                 <button id="close-intro" class="header-close-button">&times;</button>
             </h1>
 
+            <!-- INTRO NAPIT (Piilotettu 1. vaiheessa, näytetään vasta 2. vaiheessa) -->
+            <div id="intro-buttons" class="options-buttons" style="margin-top: 15px; margin-bottom: 15px; display: none;">
+                 <button id="show-touch-controls-intro">Show Touch Controls</button>
+                 <button id="show-gamepad-controls-intro">Show Gamepad Controls</button>
+                 <button id="options-button-intro">Options</button>
+            </div>
+
             <!-- CANVAS FOR LEVEL PROGRESSION IN INTRO (Piilotettu alussa) -->
             <canvas id="level-progression-intro" width="400" height="50" style="margin-top: 15px; margin-bottom: 15px; background: rgba(0,0,0,0.4); border: 1px solid #ff3300; display: none;"></canvas>
             
@@ -33,6 +40,7 @@
                 <p><strong>Jump / Jetpack:</strong> SPACE</p>
                 <p><strong>Shoot:</strong> LEFT CLICK</p>
                 <p><strong>Switch Weapon:</strong> Q / E</p>
+                <p><strong>Goggles:</strong> G</p>
                 <p><strong>Inventory:</strong> R</p>
                 <p><strong>Interact:</strong> F</p>
                 <p><strong>Map:</strong> HOLD TAB</p>
@@ -40,11 +48,6 @@
             </div>
 
             <p id="intro-cta" style="font-size: 26px; margin-top: 25px; font-family: 'Creepster', cursive; letter-spacing: 2px; color: #ff3300;">Click or Press SPACE to Reveal Mission</p>
-            
-            <div class="options-buttons" style="margin-top: 20px;">
-                 <button id="show-touch-controls-intro">Show Touch Controls</button>
-                 <button id="options-button-intro">Options</button>
-            </div>
         </div>
     </div>
     
@@ -58,6 +61,7 @@
                     <p><strong>Jump / Jetpack:</strong> SPACE</p>
                     <p><strong>Shoot:</strong> LEFT CLICK</p>
                     <p><strong>Switch Weapon:</strong> Q / E</p>
+                    <p><strong>Goggles:</strong> G</p>
                     <p><strong>Inventory:</strong> R</p>
                     <p><strong>Interact:</strong> F</p>
                     <p><strong>Map:</strong> HOLD TAB</p>
