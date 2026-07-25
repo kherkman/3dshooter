@@ -62,6 +62,12 @@ function setupControls() {
             document.body.requestPointerLock();
         }
 
+        // LISÄTTY G-NÄPPÄIN X-RAY GOGGLES -TILAN KYTKEMISEKSI (On/Off)
+        if (event.code === 'KeyG') {
+            toggleGoggles();
+            return;
+        }
+
         if (event.code === 'KeyO' || event.key === 'Escape') { 
             if (debugMenu && debugMenu.style && debugMenu.style.display.includes('flex')) {
                 toggleDebugMenu();
@@ -119,7 +125,10 @@ function setupControls() {
         if(player.state === 'on_foot' && (event.code === 'KeyQ' || event.code === 'KeyE')) changeWeapon(event.code === 'KeyE' ? 1 : -1);
         if(event.code === 'Tab') { 
             event.preventDefault(); 
-            if (mapContainer) mapContainer.style.display = 'flex'; 
+            if (mapContainer) {
+                mapContainer.style.display = 'flex'; 
+                if (typeof updateMap === 'function') updateMap();
+            }
         }
     };
     const onMouseWheel = (event) => {
@@ -184,6 +193,11 @@ function setupControls() {
         if (event.target.id === 'show-touch-controls-intro') {
             const touchMenu = document.getElementById('touch-controls-menu');
             if (touchMenu) touchMenu.style.display = 'flex';
+            return;
+        }
+        if (event.target.id === 'show-gamepad-controls-intro') {
+            const gamepadMenu = document.getElementById('gamepad-controls-menu');
+            if (gamepadMenu) gamepadMenu.style.display = 'flex';
             return;
         }
 
@@ -597,6 +611,17 @@ function setupControls() {
         closeTouchControlsBtn.addEventListener('touchend', closeTouchControls);
     }
 
+    const showGamepadControlsIntro = document.getElementById('show-gamepad-controls-intro');
+    if (showGamepadControlsIntro) {
+        const showGamepadControls = (e) => {
+            if (e) e.preventDefault();
+            const gamepadMenu = document.getElementById('gamepad-controls-menu');
+            if (gamepadMenu) gamepadMenu.style.display = 'flex';
+        };
+        showGamepadControlsIntro.addEventListener('click', showGamepadControls);
+        showGamepadControlsIntro.addEventListener('touchend', showGamepadControls);
+    }
+
     const showGamepadControlsBtnOptions = document.getElementById('show-gamepad-controls-options');
     if (showGamepadControlsBtnOptions) {
         const showGamepadControls = (e) => {
@@ -769,6 +794,32 @@ function updateGamepadControls(delta) {
         return pressed && !wasPressed;
     };
 
+    // INTRO / MISSION -RUUDUN KÄSITTELY GAMEPADILLA (X / A / Start)
+    if (typeof isIntroActive !== 'undefined' && isIntroActive) {
+        if (isJustPressed(0) || isJustPressed(2) || isJustPressed(9)) {
+            if (typeof advanceIntro === 'function') {
+                advanceIntro();
+            }
+        }
+        for (let i = 0; i < currentGamepad.buttons.length; i++) {
+            gamepadPrevButtons[i] = currentGamepad.buttons[i]?.pressed || false;
+        }
+        return;
+    }
+
+    // GAME OVER -RUUDUN KÄSITTELY GAMEPADILLA (X / A / Start)
+    if (typeof isGameOver !== 'undefined' && isGameOver) {
+        if (isJustPressed(0) || isJustPressed(2) || isJustPressed(9)) {
+            if (typeof restartGame === 'function') {
+                restartGame();
+            }
+        }
+        for (let i = 0; i < currentGamepad.buttons.length; i++) {
+            gamepadPrevButtons[i] = currentGamepad.buttons[i]?.pressed || false;
+        }
+        return;
+    }
+
     const gamepadMenu = document.getElementById('gamepad-controls-menu');
     const touchMenu = document.getElementById('touch-controls-menu');
     const optionsMenu = document.getElementById('options-menu');
@@ -807,12 +858,16 @@ function updateGamepadControls(delta) {
         toggleInventoryMenu();
     }
 
+    // GAMEPAD NELIÖ (Button X / Button 2) - Avaa ja piirtää kartan heti
     if (isJustPressed(2)) {
         if (mapContainer) {
             if (mapContainer.style.display === 'flex') {
                 mapContainer.style.display = 'none';
             } else {
                 mapContainer.style.display = 'flex';
+                if (typeof updateMap === 'function') {
+                    updateMap();
+                }
             }
         }
     }
@@ -1100,6 +1155,8 @@ function updatePlayer(delta) {
 
     playerBox.setFromCenterAndSize(playerObject.position.clone().add(new THREE.Vector3(deltaPos.x, playerHeight/2, 0)), playerSize);
     for (const c of buildingColliders) {
+        if(!c) continue;
+        if(c.userData && c.userData.isEnemyBlocker) continue;
         if(c.userData && c.userData.colliderType === 'mesh') continue;
         if(playerBox.intersectsBox(c)) {
             deltaPos.x = (deltaPos.x > 0 ? c.min.x - playerBox.max.x : c.max.x - playerBox.min.x) - 0.001 * Math.sign(deltaPos.x);
@@ -1110,6 +1167,8 @@ function updatePlayer(delta) {
     
     playerBox.setFromCenterAndSize(playerObject.position.clone().add(new THREE.Vector3(0, playerHeight/2, deltaPos.z)), playerSize);
     for (const c of buildingColliders) {
+         if(!c) continue;
+         if(c.userData && c.userData.isEnemyBlocker) continue;
          if(c.userData && c.userData.colliderType === 'mesh') continue;
          if(playerBox.intersectsBox(c)) {
             deltaPos.z = (deltaPos.z > 0 ? c.min.z - playerBox.max.z : c.max.z - playerBox.min.z) - 0.001 * Math.sign(deltaPos.z);
@@ -1118,10 +1177,12 @@ function updatePlayer(delta) {
     }
     playerObject.position.z += deltaPos.z;
 
-    // KATTO-TÖRMÄYS (Pään osuminen kattoon/tasojen alapintaan ylöspäin noustessa)
+    // KATTO-TÖRMÄYS
     if (player.velocity.y > 0) {
         playerCeilingRaycaster.set(playerObject.position, playerCeilingRayDirection);
         for (const c of buildingColliders) {
+            if(!c) continue;
+            if(c.userData && c.userData.isEnemyBlocker) continue;
             if (c.userData && c.userData.colliderType === 'mesh') {
                 const ceilingHits = playerCeilingRaycaster.intersectObject(c, true);
                 if (ceilingHits.length > 0) {
@@ -1138,7 +1199,7 @@ function updatePlayer(delta) {
         }
     }
 
-    // LATTIA-TÖRMÄYS (Sädehaku pään korkeudelta alaspäin)
+    // LATTIA-TÖRMÄYS
     player.canJump = false;
     let highestGroundY = -Infinity;
 
@@ -1147,6 +1208,9 @@ function updatePlayer(delta) {
     playerFloorRaycaster.set(playerFloorRayOrigin, playerFloorRayDirection);
 
     for (const c of buildingColliders) {
+        if (!c) continue;
+        if (c.userData && c.userData.isEnemyBlocker) continue;
+
         if (c.userData && c.userData.colliderType === 'mesh') {
             const intersections = playerFloorRaycaster.intersectObject(c, true);
             if (intersections.length > 0) {
@@ -1155,9 +1219,9 @@ function updatePlayer(delta) {
                     highestGroundY = Math.max(highestGroundY, hitY);
                 }
             }
-        } else {
+        } else if (c.isBox3) {
             const isHorizontallyInside = playerObject.position.x > c.min.x && playerObject.position.x < c.max.x && playerObject.position.z > c.min.z && playerObject.position.z < c.max.z;
-            const isAbove = playerObject.position.y >= c.max.y - 0.1;
+            const isAbove = playerObject.position.y >= c.max.y - 0.2;
             if (isHorizontallyInside && isAbove) {
                 highestGroundY = Math.max(highestGroundY, c.max.y);
             }
@@ -1177,6 +1241,7 @@ function updatePlayer(delta) {
 
     playerBox.setFromCenterAndSize(playerObject.position.clone().add(new THREE.Vector3(0, playerHeight/2, 0)), playerSize);
     for (const c of buildingColliders) {
+        if (!c || (c.userData && c.userData.isEnemyBlocker)) continue;
         if (!(c.userData && c.userData.colliderType === 'mesh') && playerBox.intersectsBox(c)) {
             if (player.velocity.y > 0 && playerBox.max.y > c.min.y) {
                  playerObject.position.y -= (playerBox.max.y - c.min.y);
@@ -1286,6 +1351,7 @@ function updatePlayerVehicle(delta) {
     bikeBox.setFromCenterAndSize(motorcycle.position, new THREE.Vector3(1.0, 1.5, 3.2));
 
     for (const c of buildingColliders) {
+        if (!c || (c.userData && c.userData.isEnemyBlocker)) continue;
         if (bikeBox.intersectsBox(c)) {
             bikeData.velocity.negate().multiplyScalar(0.5);
             break;
@@ -1303,6 +1369,7 @@ function updatePlayerVehicle(delta) {
     
     let highestGroundY = -Infinity;
     for (const c of buildingColliders) {
+        if (!c || (c.userData && c.userData.isEnemyBlocker)) continue;
         if(groundBox.intersectsBox(c)) {
             if (c.max.y > highestGroundY) {
                 highestGroundY = c.max.y;
