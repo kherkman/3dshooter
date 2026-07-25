@@ -1,3 +1,4 @@
+
 const GameWorld = {
 
     levelOrder: ['city', 'desert', 'volcanic', 'ice', 'toxic', 'crystal'],
@@ -184,7 +185,29 @@ const GameWorld = {
                     scene.add(instancedWindows);
                 }
 
+                // GRAFFITIEN SIJAINTISUODATUS: Varmistetaan vähintään 5m avointa tilaa seinän edessä
                 if (wallCandidates.length >= 2) {
+                    const clearWallCandidates = wallCandidates.filter(candidate => {
+                        const normal = new THREE.Vector3(Math.sin(candidate.rotY), 0, Math.cos(candidate.rotY));
+                        const checkCenter = candidate.pos.clone().add(normal.clone().multiplyScalar(2.5));
+                        const checkSize = new THREE.Vector3(
+                            Math.abs(normal.z) * 4.5 + Math.abs(normal.x) * 5.0,
+                            3.2,
+                            Math.abs(normal.x) * 4.5 + Math.abs(normal.z) * 5.0
+                        );
+                        const checkBox = new THREE.Box3().setFromCenterAndSize(checkCenter, checkSize);
+
+                        for (let c of buildingColliders) {
+                            const bBox = c.isMesh ? new THREE.Box3().setFromObject(c) : c;
+                            if (bBox.intersectsBox(checkBox)) {
+                                return false; // Liian lähellä toista rakennusta
+                            }
+                        }
+                        return true;
+                    });
+
+                    const validWallCandidates = clearWallCandidates.length >= 2 ? clearWallCandidates : wallCandidates;
+
                     const textureLoader = new THREE.TextureLoader();
                     const attackTex = textureLoader.load('graffiti-attack.png');
                     const robotTex = textureLoader.load('graffiti-robot.png');
@@ -202,80 +225,116 @@ const GameWorld = {
                     const robotMat = createGraffitiMat(robotTex);
                     const graffitiGeo = new THREE.PlaneGeometry(4.5, 3.2);
 
-                    const idx1 = Math.floor(Math.random() * wallCandidates.length);
-                    let idx2 = Math.floor(Math.random() * wallCandidates.length);
-                    while (idx2 === idx1) {
-                        idx2 = Math.floor(Math.random() * wallCandidates.length);
+                    const idx1 = Math.floor(Math.random() * validWallCandidates.length);
+                    let idx2 = Math.floor(Math.random() * validWallCandidates.length);
+                    while (idx2 === idx1 && validWallCandidates.length > 1) {
+                        idx2 = Math.floor(Math.random() * validWallCandidates.length);
                     }
 
-                    const wall1 = wallCandidates[idx1];
+                    const wall1 = validWallCandidates[idx1];
                     const graffiti1 = new THREE.Mesh(graffitiGeo, attackMat);
                     graffiti1.position.copy(wall1.pos);
                     graffiti1.rotation.y = wall1.rotY;
                     scene.add(graffiti1);
 
-                    const wall2 = wallCandidates[idx2];
+                    const wall2 = validWallCandidates[idx2];
                     const graffiti2 = new THREE.Mesh(graffitiGeo, robotMat);
                     graffiti2.position.copy(wall2.pos);
                     graffiti2.rotation.y = wall2.rotY;
                     scene.add(graffiti2);
                 }
 
+                // ROSKA-ASTIOIDEN JA KATUVALOJEN TURVALLINEN SIJOITUS
                 if (propPlacementCandidates.length > 0) {
                     for (let i = propPlacementCandidates.length - 1; i > 0; i--) {
                         const j = Math.floor(Math.random() * (i + 1));
                         [propPlacementCandidates[i], propPlacementCandidates[j]] = [propPlacementCandidates[j], propPlacementCandidates[i]];
                     }
 
-                    const numTrashCans = Math.min(25, Math.floor(propPlacementCandidates.length / 2));
-                    const numStreetLights = Math.min(25, Math.floor(propPlacementCandidates.length / 2));
+                    let trashCansSpawned = 0;
+                    let streetLightsSpawned = 0;
+                    const maxTrashCans = 25;
+                    const maxStreetLights = 25;
 
-                    const guaranteedFuelCellIndex = Math.floor(Math.random() * numTrashCans);
+                    for (let candidate of propPlacementCandidates) {
+                        if (trashCansSpawned < maxTrashCans) {
+                            const trashGroup = GameWorld.props.createTrashCanMesh();
+                            trashGroup.position.copy(candidate.pos);
+                            trashGroup.rotation.y = candidate.rotY;
+                            trashGroup.updateMatrixWorld(true);
 
-                    for (let i = 0; i < numTrashCans; i++) {
-                        const candidate = propPlacementCandidates[i];
-                        const trashGroup = GameWorld.props.createTrashCanMesh();
-                        trashGroup.position.copy(candidate.pos);
-                        trashGroup.rotation.y = candidate.rotY;
-                        scene.add(trashGroup);
+                            const trashBox = new THREE.Box3().setFromObject(trashGroup);
+                            
+                            let intersects = false;
+                            for (let c of buildingColliders) {
+                                const bBox = c.isMesh ? new THREE.Box3().setFromObject(c) : c;
+                                if (bBox.intersectsBox(trashBox)) {
+                                    intersects = true;
+                                    break;
+                                }
+                            }
 
-                        let dropItem = null;
-                        if (i === guaranteedFuelCellIndex) {
-                            dropItem = 'fuel_cell';
-                        } else if (Math.random() < 0.25) {
-                            dropItem = Math.random() < 0.5 ? 'health' : 'ammo_shotgun';
+                            if (!intersects) {
+                                scene.add(trashGroup);
+
+                                let dropItem = null;
+                                if (trashCansSpawned === 0) {
+                                    dropItem = 'fuel_cell';
+                                } else if (Math.random() < 0.25) {
+                                    dropItem = Math.random() < 0.5 ? 'health' : 'ammo_shotgun';
+                                }
+
+                                const box = new THREE.Box3().setFromObject(trashGroup);
+                                box.userData = {
+                                    isDestructible: true,
+                                    propType: 'trash_can',
+                                    mesh: trashGroup,
+                                    containsItem: dropItem
+                                };
+                                buildingColliders.push(box);
+                                trashCansSpawned++;
+                                continue;
+                            }
                         }
 
-                        const box = new THREE.Box3().setFromObject(trashGroup);
-                        box.userData = {
-                            isDestructible: true,
-                            propType: 'trash_can',
-                            mesh: trashGroup,
-                            containsItem: dropItem
-                        };
-                        buildingColliders.push(box);
-                    }
+                        if (streetLightsSpawned < maxStreetLights) {
+                            const lightGroup = GameWorld.props.createStreetLightMesh();
+                            lightGroup.position.copy(candidate.pos);
+                            lightGroup.rotation.y = candidate.rotY;
+                            lightGroup.updateMatrixWorld(true);
 
-                    for (let i = numTrashCans; i < numTrashCans + numStreetLights; i++) {
-                        const candidate = propPlacementCandidates[i];
-                        const lightGroup = GameWorld.props.createStreetLightMesh();
-                        lightGroup.position.copy(candidate.pos);
-                        lightGroup.rotation.y = candidate.rotY;
-                        scene.add(lightGroup);
+                            const poleRadius = 0.3;
+                            const poleHeight = 4.8;
+                            const lightBox = new THREE.Box3().setFromCenterAndSize(
+                                candidate.pos.clone().add(new THREE.Vector3(0, poleHeight / 2, 0)),
+                                new THREE.Vector3(poleRadius * 2, poleHeight, poleRadius * 2)
+                            );
 
-                        const poleRadius = 0.3;
-                        const poleHeight = 4.8;
-                        const box = new THREE.Box3().setFromCenterAndSize(
-                            candidate.pos.clone().add(new THREE.Vector3(0, poleHeight / 2, 0)),
-                            new THREE.Vector3(poleRadius * 2, poleHeight, poleRadius * 2)
-                        );
+                            let intersects = false;
+                            for (let c of buildingColliders) {
+                                const bBox = c.isMesh ? new THREE.Box3().setFromObject(c) : c;
+                                if (bBox.intersectsBox(lightBox)) {
+                                    intersects = true;
+                                    break;
+                                }
+                            }
 
-                        box.userData = {
-                            isDestructible: true,
-                            propType: 'street_light',
-                            mesh: lightGroup
-                        };
-                        buildingColliders.push(box);
+                            if (!intersects) {
+                                scene.add(lightGroup);
+
+                                lightBox.userData = {
+                                    isDestructible: true,
+                                    propType: 'street_light',
+                                    mesh: lightGroup
+                                };
+                                buildingColliders.push(lightBox);
+                                streetLightsSpawned++;
+                            }
+                        }
+
+                        if (trashCansSpawned >= maxTrashCans && streetLightsSpawned >= maxStreetLights) {
+                            break;
+                        }
                     }
                 }
 
@@ -652,12 +711,39 @@ const GameWorld = {
                     roughness: 1.0 
                 });
                 const ground = new THREE.Mesh( new THREE.PlaneGeometry(400, 400), groundMat ); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-                
-                const rockGeo = new THREE.TorusKnotGeometry(1, 0.4, 64, 8, 2, 3); const rockMat = new THREE.MeshStandardMaterial({ color: 0x223322, roughness: 0.8, metalness: 0.4 });
+
+                // =========================================================================
+                // BUNKKERIN SIJAINTI JA ESTEETTÖMÄN ALUEEN TARKISTUS
+                // =========================================================================
+                const bunkerCenter = new THREE.Vector3(60, 0, -60);
+                const bunkerRadius = 7.0;
+                const bunkerHeight = 5.0;
+                const wallThickness = 0.8;
+
+                const isNearBunker = (pos, margin = 18.0) => {
+                    const distToCenter = pos.distanceTo(new THREE.Vector2(bunkerCenter.x, bunkerCenter.z));
+                    const entrancePos = new THREE.Vector2(bunkerCenter.x, bunkerCenter.z - bunkerRadius - 6.0);
+                    const distToEntrance = pos.distanceTo(entrancePos);
+                    return distToCenter < margin || distToEntrance < 12.0;
+                };
+
+                const rockGeo = new THREE.TorusKnotGeometry(1, 0.4, 64, 8, 2, 3);
+                const hasToxicStemTex = (gameSettings.texturesEnabled && window.toxicStemTexture);
+                const rockMat = new THREE.MeshStandardMaterial({ 
+                    color: hasToxicStemTex ? 0xffffff : 0x223322, 
+                    map: hasToxicStemTex ? window.toxicStemTexture : null,
+                    roughness: 0.8, 
+                    metalness: 0.4 
+                });
+
                 for(let i = 0; i < 40; i++) { 
+                    const posX = (Math.random() - 0.5) * 380;
+                    const posZ = (Math.random() - 0.5) * 380;
+                    if (isNearBunker(new THREE.Vector2(posX, posZ))) continue;
+
                     const rock = new THREE.Mesh(rockGeo, rockMat); 
                     rock.scale.setScalar(Math.random() * 5 + 4); 
-                    rock.position.set( (Math.random() - 0.5) * 380, rock.scale.y, (Math.random() - 0.5) * 380 ); 
+                    rock.position.set( posX, rock.scale.y, posZ ); 
                     rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI); 
                     rock.castShadow = true; 
                     rock.receiveShadow = true; 
@@ -668,8 +754,104 @@ const GameWorld = {
                     box.expandByVector(size.multiplyScalar(-0.15)); 
                     buildingColliders.push(box);
                 }
-                
+
+                // =========================================================================
+                // SYLINTERIMÄINEN BUNKKERI WALL-TEKSTUURILLA, KATTO-TÖRMÄIMELLÄ JA VIHOLLISBLOKKERILLA
+                // =========================================================================
+                const hasWallTex = gameSettings.texturesEnabled && window.cityWallTexture;
+                const bunkerMat = new THREE.MeshStandardMaterial({
+                    color: hasWallTex ? 0xffffff : 0x555555,
+                    map: hasWallTex ? window.cityWallTexture : null,
+                    roughness: 0.7
+                });
+
+                const bunkerGroup = new THREE.Group();
+                bunkerGroup.position.copy(bunkerCenter);
+
+                const numSegments = 16;
+                const doorSegmentIndex = 0; // Oviaukko pohjoisessa (-Z suunta)
+                const embrasureHeightMin = 1.6;
+                const embrasureHeightMax = 2.8;
+
+                for (let i = 0; i < numSegments; i++) {
+                    const angle = (i / numSegments) * Math.PI * 2;
+                    const x = Math.cos(angle) * bunkerRadius;
+                    const z = Math.sin(angle) * bunkerRadius;
+                    const segWidth = (2 * Math.PI * bunkerRadius / numSegments) + 0.4;
+
+                    if (i === doorSegmentIndex) {
+                        // Avoin oviaukko pelaajalle (vain yläpalkki katon tukemiseen)
+                        const doorUpperHeight = bunkerHeight - 3.2;
+                        const wallGeo = new THREE.BoxGeometry(segWidth, doorUpperHeight, wallThickness);
+                        const wallMesh = new THREE.Mesh(wallGeo, bunkerMat);
+                        wallMesh.position.set(x, 3.2 + doorUpperHeight / 2, z);
+                        wallMesh.rotation.y = -angle + Math.PI / 2;
+                        wallMesh.castShadow = true;
+                        wallMesh.receiveShadow = true;
+                        bunkerGroup.add(wallMesh);
+                        buildingColliders.push(new THREE.Box3().setFromObject(wallMesh));
+
+                        // NÄKYMÄTÖN VIHOLLISBLOKKERI SISÄÄNKÄYNNILLÄ:
+                        // Pelaaja pääsee läpi, mutta vihollisfysiikka lukee tämän seinäksi (isEnemyBlocker)
+                        const blockerBox = new THREE.Box3().setFromCenterAndSize(
+                            bunkerCenter.clone().add(new THREE.Vector3(x, 1.6, z)),
+                            new THREE.Vector3(segWidth + 0.4, 3.2, wallThickness * 3.0)
+                        );
+                        blockerBox.userData = { isEnemyBlocker: true };
+                        buildingColliders.push(blockerBox);
+                    } else {
+                        // Ampuma-aukot: Alaseinä (0 - 1.6m)
+                        const lowerGeo = new THREE.BoxGeometry(segWidth, embrasureHeightMin, wallThickness);
+                        const lowerMesh = new THREE.Mesh(lowerGeo, bunkerMat);
+                        lowerMesh.position.set(x, embrasureHeightMin / 2, z);
+                        lowerMesh.rotation.y = -angle + Math.PI / 2;
+                        lowerMesh.castShadow = true;
+                        bunkerGroup.add(lowerMesh);
+                        buildingColliders.push(new THREE.Box3().setFromObject(lowerMesh));
+
+                        // Yläseinä (2.8m - 5.0m)
+                        const upperHeight = bunkerHeight - embrasureHeightMax;
+                        const upperGeo = new THREE.BoxGeometry(segWidth, upperHeight, wallThickness);
+                        const upperMesh = new THREE.Mesh(upperGeo, bunkerMat);
+                        upperMesh.position.set(x, embrasureHeightMax + upperHeight / 2, z);
+                        upperMesh.rotation.y = -angle + Math.PI / 2;
+                        upperMesh.castShadow = true;
+                        bunkerGroup.add(upperMesh);
+                        buildingColliders.push(new THREE.Box3().setFromObject(upperMesh));
+                    }
+                }
+
+                // Tasainen sylinterimäinen katto visualisointina sekä katto-törmäimenä
+                const roofGeo = new THREE.CylinderGeometry(bunkerRadius + 0.6, bunkerRadius + 0.6, 0.6, 32);
+                const roofMesh = new THREE.Mesh(roofGeo, bunkerMat);
+                roofMesh.position.set(0, bunkerHeight + 0.3, 0);
+                roofMesh.castShadow = true;
+                roofMesh.receiveShadow = true;
+                bunkerGroup.add(roofMesh);
+
+                const roofCollider = new THREE.Box3().setFromCenterAndSize(
+                    bunkerCenter.clone().add(new THREE.Vector3(0, bunkerHeight + 0.3, 0)),
+                    new THREE.Vector3((bunkerRadius + 0.6) * 2, 0.6, (bunkerRadius + 0.6) * 2)
+                );
+                buildingColliders.push(roofCollider);
+
+                scene.add(bunkerGroup);
+                bunkers.push(bunkerGroup);
+
+                // Fuel Cell bunkkerin sisälle
+                const bunkerFuelCell = GameData.items.fuel_cell.model();
+                bunkerFuelCell.position.copy(bunkerCenter).add(new THREE.Vector3(0, 0.8, 0));
+                bunkerFuelCell.userData.key = 'fuel_cell';
+                bunkerFuelCell.userData.type = 'fuel_cell';
+                collectibles.fuelCells.push(bunkerFuelCell);
+                scene.add(bunkerFuelCell);
+
+                // Kasvillisuuden generointi
                 for(let i=0; i<150; i++){ 
+                    const posX = (Math.random()-0.5)*380;
+                    const posZ = (Math.random()-0.5)*380;
+                    if (isNearBunker(new THREE.Vector2(posX, posZ))) continue;
+
                     const isPoison = Math.random() < 0.2;
                     const plant = new THREE.Group();
                     
@@ -700,7 +882,7 @@ const GameWorld = {
                         leaf.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
                         plant.add(leaf);
                     }
-                    plant.position.set((Math.random()-0.5)*380, 0, (Math.random()-0.5)*380); 
+                    plant.position.set(posX, 0, posZ); 
                     plant.castShadow = true; plant.userData.isPoison = isPoison;
                     vegetation.push(plant); scene.add(plant); 
                 }
@@ -710,7 +892,11 @@ const GameWorld = {
                 const instancedGrass = new THREE.InstancedMesh(grassGeo, grassMat, 50000);
                 const dummy = new THREE.Object3D();
                 for(let i=0; i<50000; i++) {
-                    dummy.position.set((Math.random()-0.5)*400, 0.25, (Math.random()-0.5)*400);
+                    const posX = (Math.random()-0.5)*400;
+                    const posZ = (Math.random()-0.5)*400;
+                    if (isNearBunker(new THREE.Vector2(posX, posZ), 10.0)) continue;
+
+                    dummy.position.set(posX, 0.25, posZ);
                     dummy.rotation.y = Math.random() * Math.PI;
                     dummy.scale.set(1.5, 1.5, 1.5);
                     dummy.updateMatrix();
@@ -725,6 +911,10 @@ const GameWorld = {
                 });
 
                 for (let i = 0; i < 300; i++) {
+                    const posX = (Math.random() - 0.5) * 380;
+                    const posZ = (Math.random() - 0.5) * 380;
+                    if (isNearBunker(new THREE.Vector2(posX, posZ))) continue;
+
                     const shelterPlant = new THREE.Group();
                     const height = Math.random() * 10 + 8; 
                     const stem = new THREE.Mesh(
@@ -733,7 +923,7 @@ const GameWorld = {
                     );
                     stem.position.y = height / 2;
                     shelterPlant.add(stem);
-                    shelterPlant.position.set((Math.random() - 0.5) * 380, 0, (Math.random() - 0.5) * 380);
+                    shelterPlant.position.set(posX, 0, posZ);
                     shelterPlant.castShadow = true;
                     shelterPlant.userData.isShelter = true; 
                     vegetation.push(shelterPlant); 
@@ -753,6 +943,10 @@ const GameWorld = {
                 });
 
                 for (let i = 0; i < 70; i++) {
+                    const posX = (Math.random() - 0.5) * 380;
+                    const posZ = (Math.random() - 0.5) * 380;
+                    if (isNearBunker(new THREE.Vector2(posX, posZ))) continue;
+
                     const tree = new THREE.Group();
                     const height = Math.random() * 20 + 30; 
                     const radius = Math.random() * 1 + 0.8;
@@ -766,7 +960,7 @@ const GameWorld = {
                     canopy.castShadow = true;
                     tree.add(canopy);
                     
-                    tree.position.set((Math.random() - 0.5) * 380, 0, (Math.random() - 0.5) * 380);
+                    tree.position.set(posX, 0, posZ);
                     tree.userData.isShelter = true;
                     tree.userData.isTree = true;
                     vegetation.push(tree);
@@ -837,14 +1031,13 @@ const GameWorld = {
                 const cellSize = 8;
                 const mazeRadius = (mazeGridSize / 2) * cellSize;
 
-                // Torni asennettu erilleen labyrintistä (Position: 100, 0, 80)
                 const towerPos = new THREE.Vector3(100, 0, 80);
                 const towerRadius = 14;
                 const towerHeight = 60;
                 const numFloors = 4;
-                const floorHeight = towerHeight / numFloors; // 15m / kerros
+                const floorHeight = towerHeight / numFloors; 
 
-                // Kristallien generointi - Estetään generointi labyrinttiin JA TORNIN LÄHELLE!
+                // KRISTALLIT - InstancedMesh (80 kpl)
                 const hasCrystalRockTex = gameSettings.texturesEnabled && window.crystalRockTexture;
                 const crystalGeo = new THREE.OctahedronGeometry(1);
                 const crystalMat = new THREE.MeshStandardMaterial({
@@ -859,33 +1052,45 @@ const GameWorld = {
                     opacity: 0.85
                 });
 
-                for (let i = 0; i < 80; i++) {
-                    const crystal = new THREE.Mesh(crystalGeo, crystalMat);
-                    crystal.scale.setScalar(Math.random() * 12 + 3);
+                const maxCrystals = 80;
+                const instancedCrystals = new THREE.InstancedMesh(crystalGeo, crystalMat, maxCrystals);
+                instancedCrystals.castShadow = true;
+                instancedCrystals.receiveShadow = true;
+
+                const dummyObj = new THREE.Object3D();
+                let crystalCount = 0;
+
+                while (crystalCount < maxCrystals) {
+                    const scale = Math.random() * 12 + 3;
                     const posX = (Math.random() - 0.5) * 380;
                     const posZ = (Math.random() - 0.5) * 380;
-                    crystal.position.set(posX, (crystal.scale.y / 2) - Math.random() * 2, posZ);
-                    
+                    const posY = (scale / 2) - Math.random() * 2;
+
                     const distFromMazeCenter = new THREE.Vector2(posX, posZ).distanceTo(new THREE.Vector2(mazeCenterPos.x, mazeCenterPos.z));
                     const distFromTower = new THREE.Vector2(posX, posZ).distanceTo(new THREE.Vector2(towerPos.x, towerPos.z));
 
                     if (distFromMazeCenter < mazeRadius || distFromTower < towerRadius + 15) {
-                        i--; 
                         continue;
                     }
 
-                    crystal.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-                    crystal.castShadow = true;
-                    crystal.receiveShadow = true;
-                    scene.add(crystal);
-                    const box = new THREE.Box3().setFromObject(crystal);
-                    const size = new THREE.Vector3();
-                    box.getSize(size);
-                    box.expandByVector(size.multiplyScalar(-0.2)); 
+                    dummyObj.position.set(posX, posY, posZ);
+                    dummyObj.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                    dummyObj.scale.setScalar(scale);
+                    dummyObj.updateMatrix();
+
+                    instancedCrystals.setMatrixAt(crystalCount, dummyObj.matrix);
+
+                    const box = new THREE.Box3();
+                    const sizeVec = new THREE.Vector3(scale, scale, scale);
+                    box.setFromCenterAndSize(dummyObj.position, sizeVec.clone().multiplyScalar(0.8));
                     buildingColliders.push(box);
+
+                    crystalCount++;
                 }
-                
-                // Serverien generointi - Estetään myös labyrintin ja tornin läheltä
+                instancedCrystals.instanceMatrix.needsUpdate = true;
+                scene.add(instancedCrystals);
+
+                // SERVERIT - InstancedMesh (40 kpl)
                 const hasCrystalBlockTex = gameSettings.texturesEnabled && window.crystalBlockTexture;
                 const serverMat = new THREE.MeshStandardMaterial({
                     color: hasCrystalBlockTex ? 0xffffff : 0x333344,
@@ -893,29 +1098,40 @@ const GameWorld = {
                     emissive: hasCrystalBlockTex ? 0x000000 : 0x222288,
                     emissiveIntensity: hasCrystalBlockTex ? 0.0 : 1
                 });
-                for (let i = 0; i < 40; i++) {
+                const serverGeo = new THREE.BoxGeometry(1, 2, 1);
+                const maxServers = 40;
+                const instancedServers = new THREE.InstancedMesh(serverGeo, serverMat, maxServers);
+
+                let serverCount = 0;
+                while (serverCount < maxServers) {
                     const sSize = Math.random() * 4 + 2;
                     const posX = (Math.random() - 0.5) * 380;
                     const posZ = (Math.random() - 0.5) * 380;
-                    const server = new THREE.Mesh(new THREE.BoxGeometry(sSize, sSize * 2, sSize), serverMat);
-                    server.position.set(posX, sSize, posZ);
-                    
+
                     const distFromMazeCenter = new THREE.Vector2(posX, posZ).distanceTo(new THREE.Vector2(mazeCenterPos.x, mazeCenterPos.z));
                     const distFromTower = new THREE.Vector2(posX, posZ).distanceTo(new THREE.Vector2(towerPos.x, towerPos.z));
 
                     if (distFromMazeCenter < mazeRadius || distFromTower < towerRadius + 15) {
-                        i--; 
                         continue;
                     }
 
-                    scene.add(server);
-                    const box = new THREE.Box3().setFromObject(server);
-                    const size = new THREE.Vector3();
-                    box.getSize(size);
-                    box.expandByVector(size.multiplyScalar(-0.1)); 
+                    dummyObj.position.set(posX, sSize, posZ);
+                    dummyObj.rotation.set(0, 0, 0);
+                    dummyObj.scale.set(sSize, sSize, sSize);
+                    dummyObj.updateMatrix();
+
+                    instancedServers.setMatrixAt(serverCount, dummyObj.matrix);
+
+                    const box = new THREE.Box3();
+                    box.setFromCenterAndSize(dummyObj.position, new THREE.Vector3(sSize * 0.9, sSize * 2 * 0.9, sSize * 0.9));
                     buildingColliders.push(box);
+
+                    serverCount++;
                 }
-                
+                instancedServers.instanceMatrix.needsUpdate = true;
+                scene.add(instancedServers);
+
+                // LABYRINTIN SEINÄT - InstancedMesh
                 const wallHeight = 6;
                 const wallThickness = 1.0;
                 const hasCrystalWallTex = gameSettings.texturesEnabled && window.crystalWallTexture;
@@ -975,6 +1191,7 @@ const GameWorld = {
 
                 const mazeGrid = generateMaze(mazeGridSize);
                 const halfGrid = Math.floor(mazeGridSize / 2);
+                const mazeWallTransforms = [];
 
                 for (let r = 0; r < mazeGridSize; r++) {
                     for (let c = 0; c < mazeGridSize; c++) {
@@ -987,35 +1204,43 @@ const GameWorld = {
                         const cell = mazeGrid[r][c];
 
                         if (cell.walls.N) {
-                            const wall = new THREE.Mesh(new THREE.BoxGeometry(cellSize + wallThickness, wallHeight, wallThickness), mazeMat);
-                            wall.position.set(cellWorldX, wallHeight / 2, cellWorldZ - cellSize / 2);
-                            wall.castShadow = true; wall.receiveShadow = true; scene.add(wall);
-                            buildingColliders.push(new THREE.Box3().setFromObject(wall));
+                            mazeWallTransforms.push({ pos: new THREE.Vector3(cellWorldX, wallHeight / 2, cellWorldZ - cellSize / 2), size: new THREE.Vector3(cellSize + wallThickness, wallHeight, wallThickness) });
                         }
                         if (cell.walls.S) {
-                            const wall = new THREE.Mesh(new THREE.BoxGeometry(cellSize + wallThickness, wallHeight, wallThickness), mazeMat);
-                            wall.position.set(cellWorldX, wallHeight / 2, cellWorldZ + cellSize / 2);
-                             wall.castShadow = true; wall.receiveShadow = true; scene.add(wall);
-                            buildingColliders.push(new THREE.Box3().setFromObject(wall));
+                            mazeWallTransforms.push({ pos: new THREE.Vector3(cellWorldX, wallHeight / 2, cellWorldZ + cellSize / 2), size: new THREE.Vector3(cellSize + wallThickness, wallHeight, wallThickness) });
                         }
                         if (cell.walls.W) {
-                            const wall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, cellSize + wallThickness), mazeMat);
-                            wall.position.set(cellWorldX - cellSize / 2, wallHeight / 2, cellWorldZ);
-                             wall.castShadow = true; wall.receiveShadow = true; scene.add(wall);
-                            buildingColliders.push(new THREE.Box3().setFromObject(wall));
+                            mazeWallTransforms.push({ pos: new THREE.Vector3(cellWorldX - cellSize / 2, wallHeight / 2, cellWorldZ), size: new THREE.Vector3(wallThickness, wallHeight, cellSize + wallThickness) });
                         }
                         if (cell.walls.E) {
-                            const wall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, cellSize + wallThickness), mazeMat);
-                            wall.position.set(cellWorldX + cellSize / 2, wallHeight / 2, cellWorldZ);
-                             wall.castShadow = true; wall.receiveShadow = true; scene.add(wall);
-                            buildingColliders.push(new THREE.Box3().setFromObject(wall));
+                            mazeWallTransforms.push({ pos: new THREE.Vector3(cellWorldX + cellSize / 2, wallHeight / 2, cellWorldZ), size: new THREE.Vector3(wallThickness, wallHeight, cellSize + wallThickness) });
                         }
                     }
                 }
 
-                // =========================================================================
-                // VALKOISEN TORNIN (TOWER) RAKENTAMINEN & TIIVIS SAUMATON SEINÄRAKENNE
-                // =========================================================================
+                if (mazeWallTransforms.length > 0) {
+                    const unitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+                    const instancedMaze = new THREE.InstancedMesh(unitBoxGeo, mazeMat, mazeWallTransforms.length);
+                    instancedMaze.castShadow = true;
+                    instancedMaze.receiveShadow = true;
+
+                    mazeWallTransforms.forEach((wt, idx) => {
+                        dummyObj.position.copy(wt.pos);
+                        dummyObj.rotation.set(0, 0, 0);
+                        dummyObj.scale.copy(wt.size);
+                        dummyObj.updateMatrix();
+
+                        instancedMaze.setMatrixAt(idx, dummyObj.matrix);
+
+                        const box = new THREE.Box3().setFromCenterAndSize(wt.pos, wt.size);
+                        buildingColliders.push(box);
+                    });
+
+                    instancedMaze.instanceMatrix.needsUpdate = true;
+                    scene.add(instancedMaze);
+                }
+
+                // VALKOISEN TORNIN RAKENTAMINEN
                 const hasTowerTex = gameSettings.texturesEnabled && window.towerTexture;
                 const towerMat = new THREE.MeshStandardMaterial({
                     color: hasTowerTex ? 0xffffff : 0xf0f0f5,
@@ -1027,7 +1252,6 @@ const GameWorld = {
                 const towerGroup = new THREE.Group();
                 towerGroup.position.copy(towerPos);
 
-                // 1. Tornin ulkoseinät 16 segmenttinä tiiviillä limityksellä ja oviaukoilla
                 const wallSegments = 16;
                 const doorwayHeight = 8.0;
                 const wallMeshes = [];
@@ -1038,7 +1262,7 @@ const GameWorld = {
                     const z = Math.sin(angle) * towerRadius;
 
                     const isDoorway = (i === 0 || i === 8);
-                    const segWidth = (2 * Math.PI * towerRadius / wallSegments) + 0.6; // Ylimenevä limitys rakojen estämiseksi
+                    const segWidth = (2 * Math.PI * towerRadius / wallSegments) + 0.6; 
 
                     if (isDoorway) {
                         const upperWallHeight = towerHeight - doorwayHeight;
@@ -1066,17 +1290,14 @@ const GameWorld = {
                     }
                 }
 
-                // 2. Kerrostasanteet ja Katto - LÄPÄISEMÄTTÖMÄT LATTIAELEMENTIT HISSIAUKOLLA (Säde 4.2m)
+                // TORNIN KERROSTASOJEN BOX3-TÖRMÄIMET
                 const floorPositions = [];
-                const floorMeshes = [];
                 const holeRadius = 4.2;
-
-                // Kaksipuolinen materiaali varmistaa virheettömän törmäystunnistuksen ylhäältä ja alhaalta
                 const floorMat = towerMat.clone();
                 floorMat.side = THREE.DoubleSide;
 
                 for (let f = 1; f <= numFloors; f++) {
-                    const fY = f * floorHeight; // 15m, 30m, 45m, 60m (Katto)
+                    const fY = f * floorHeight; 
                     floorPositions.push(fY);
 
                     const floorShape = new THREE.Shape();
@@ -1086,36 +1307,39 @@ const GameWorld = {
                     holePath.absarc(0, 0, holeRadius, 0, Math.PI * 2, true);
                     floorShape.holes.push(holePath);
 
-                    const floorExtrude = new THREE.ExtrudeGeometry(floorShape, { depth: 0.8, bevelEnabled: false });
+                    const floorExtrude = new THREE.ExtrudeGeometry(floorShape, { depth: 0.4, bevelEnabled: false });
                     const floorMesh = new THREE.Mesh(floorExtrude, floorMat);
                     floorMesh.rotation.x = Math.PI / 2;
                     floorMesh.position.set(0, fY, 0);
                     floorMesh.receiveShadow = true;
                     floorMesh.castShadow = true;
-                    floorMesh.userData.colliderType = 'mesh';
-
                     towerGroup.add(floorMesh);
-                    floorMeshes.push({ mesh: floorMesh, fY: fY });
+
+                    const slabThickness = 0.4;
+                    const r = towerRadius - 0.2;
+                    const h = holeRadius;
+
+                    const floorSlabs = [
+                        new THREE.Box3(new THREE.Vector3(towerPos.x - r, fY - slabThickness, towerPos.z - r), new THREE.Vector3(towerPos.x + r, fY, towerPos.z - h)),
+                        new THREE.Box3(new THREE.Vector3(towerPos.x - r, fY - slabThickness, towerPos.z + h), new THREE.Vector3(towerPos.x + r, fY, towerPos.z + r)),
+                        new THREE.Box3(new THREE.Vector3(towerPos.x - r, fY - slabThickness, towerPos.z - h), new THREE.Vector3(towerPos.x - h, fY, towerPos.z + h)),
+                        new THREE.Box3(new THREE.Vector3(towerPos.x + h, fY - slabThickness, towerPos.z - h), new THREE.Vector3(towerPos.x + r, fY, towerPos.z + h))
+                    ];
+
+                    floorSlabs.forEach(slab => {
+                        buildingColliders.push(slab);
+                    });
                 }
 
                 scene.add(towerGroup);
                 towerGroup.updateMatrixWorld(true);
 
-                // Lisätään ulkoseinien törmäyslaatikot maapisteiden maailmankoordinaateissa
                 wallMeshes.forEach(wallMesh => {
                     const segBox = new THREE.Box3().setFromObject(wallMesh);
                     buildingColliders.push(segBox);
                 });
 
-                // KERROSTASANTEET JA KATTO:
-                // Käytetään mesh-pohjaista törmäyksentunnistusta (colliderType = 'mesh'),
-                // mikä estää pelaajaa lentämästä/siirtymästä pois tornista.
-                floorMeshes.forEach(({ mesh }) => {
-                    mesh.updateMatrixWorld(true);
-                    buildingColliders.push(mesh);
-                });
-
-                // 3. Automaattinen hissi & crystalelevator.jpg tekstuuri
+                // Automaattinen hissi
                 const hasElevatorTex = gameSettings.texturesEnabled && window.crystalElevatorTexture;
                 const elevatorGeo = new THREE.CylinderGeometry(4.0, 4.0, 0.5, 32);
                 const elevatorMat = new THREE.MeshStandardMaterial({
@@ -1141,11 +1365,11 @@ const GameWorld = {
                     minY: 0.25,
                     maxY: towerHeight - 0.2,
                     speed: 8.0,
-                    direction: 1
+                    direction: 1,
+                    waitTime: 0
                 };
 
-                // 4. KRISTALLIKONE / AIVOT HUIPPULLE (crystalbrain.jpg) & SÄKENÖIVÄT EFEKTIT
-                // TERÄVÄ JA SELKEÄ TEKSTUURI: neutraali emissive ja pienennetty metalness/roughness
+                // KRISTALLIKONE / AIVOT HUIPPULLE
                 const hasBrainTex = gameSettings.texturesEnabled && window.crystalBrainTexture;
                 const brainMat = new THREE.MeshStandardMaterial({
                     color: hasBrainTex ? 0xffffff : 0xff0088,
@@ -1157,17 +1381,14 @@ const GameWorld = {
                 });
 
                 const brainGroup = new THREE.Group();
-                // Tasainen pallogeometria varmistaa terävän ja venymättömän tekstuurikartoituksen
                 const brainCore = new THREE.Mesh(new THREE.SphereGeometry(2.8, 32, 32), brainMat);
                 brainCore.position.y = towerHeight + 3.5;
                 brainGroup.add(brainCore);
 
-                // Lisätään kirkas valolähde koneen keskelle kauas näkymistä varten
                 const brainLight = new THREE.PointLight(0xff00ff, 4.0, 100);
                 brainLight.position.y = towerHeight + 3.5;
                 brainGroup.add(brainLight);
 
-                // Hohtavat ja pyörivät energiarenkaat
                 const ringMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 2.0 });
                 const brainRing1 = new THREE.Mesh(new THREE.TorusGeometry(4.2, 0.25, 16, 32), ringMat);
                 brainRing1.position.y = towerHeight + 3.5;
@@ -1179,7 +1400,6 @@ const GameWorld = {
                 brainRing2.rotation.y = Math.PI / 4;
                 brainGroup.add(brainRing2);
 
-                // Säkenöivät pikkukristallit ympärillä
                 const sparkMat = new THREE.MeshStandardMaterial({ color: 0xffaaff, emissive: 0xff00ff, emissiveIntensity: 3.0 });
                 for (let i = 0; i < 12; i++) {
                     const spark = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), sparkMat);
@@ -1192,7 +1412,6 @@ const GameWorld = {
                 scene.add(brainGroup);
                 brainGroup.updateMatrixWorld(true);
 
-                // PURPPURA SAVU -GENERAATTORI
                 const spawnPurpleSmoke = (emitterPos) => {
                     if (typeof scene === 'undefined' || typeof smokeParticles === 'undefined') return;
                     const geo = new THREE.SphereGeometry(0.35, 8, 8);
@@ -1219,17 +1438,6 @@ const GameWorld = {
                     scene.add(p);
                 };
 
-                // Jatkuva purppuran savun nousu koneesta (tallennetaan viite brainBoxiin)
-                const brainSmokeInterval = setInterval(() => {
-                    if (brainBox.userData.isDestroyed || typeof currentLevel === 'undefined' || currentLevel !== 'crystal') {
-                        clearInterval(brainSmokeInterval);
-                        return;
-                    }
-                    const smokePos = towerPos.clone().add(new THREE.Vector3(0, towerHeight + 3.5, 0));
-                    spawnPurpleSmoke(smokePos);
-                }, 120);
-
-                // Asetetaan toinen Fuel Cell leijumaan täsmälleen koneen yläpuolelle (Tornin huipulle)
                 const topFuelCellPos = new THREE.Vector3(towerPos.x, towerHeight + 8.5, towerPos.z);
                 const topFuelCell = GameData.items.fuel_cell.model();
                 topFuelCell.position.copy(topFuelCellPos);
@@ -1240,8 +1448,17 @@ const GameWorld = {
                 collectibles.fuelCells.push(topFuelCell);
                 scene.add(topFuelCell);
 
-                // Koneen törmäys- ja kestävyystiedot
                 const brainBox = new THREE.Box3().setFromObject(brainCore);
+
+                const brainSmokeInterval = setInterval(() => {
+                    if (!brainBox || !brainBox.userData || brainBox.userData.isDestroyed || typeof currentLevel === 'undefined' || currentLevel !== 'crystal') {
+                        clearInterval(brainSmokeInterval);
+                        return;
+                    }
+                    const smokePos = towerPos.clone().add(new THREE.Vector3(0, towerHeight + 3.5, 0));
+                    spawnPurpleSmoke(smokePos);
+                }, 120);
+
                 brainBox.userData = {
                     isCrystalBrain: true,
                     health: 300,
@@ -1252,7 +1469,6 @@ const GameWorld = {
                 };
                 buildingColliders.push(brainBox);
 
-                // Reuna-alueen rajoitusseinät
                 const wallMat = new THREE.MeshStandardMaterial({
                     color: 0xaa88ff,
                     transparent: true,
@@ -1971,4 +2187,3 @@ const GameWorld = {
         }
     }
 };
-
