@@ -9,8 +9,12 @@ const touchState = {}; // Keyed by touch identifier
 let gamepad = null;
 let hasRequestedDeviceOrientationPermission = false; // Global variable for device motion permission
 const gamepadPrevButtons = {}; // Track previous button states for edge triggering
+
 let gamepadInvSelectedIndex = 0;
 let gamepadInvDebounceTimer = 0;
+
+let gamepadOptSelectedIndex = 0;
+let gamepadOptDebounceTimer = 0;
 
 // --- OPTIMIZED SHARED COLLISION OBJECTS & RAYCASTERS ---
 const playerFloorRaycaster = new THREE.Raycaster();
@@ -62,7 +66,7 @@ function setupControls() {
             document.body.requestPointerLock();
         }
 
-        // LISÄTTY G-NÄPPÄIN X-RAY GOGGLES -TILAN KYTKEMISEKSI (On/Off)
+        // G-NÄPPÄIN X-RAY GOGGLES -TILAN KYTKEMISEKSI (On/Off)
         if (event.code === 'KeyG') {
             toggleGoggles();
             return;
@@ -735,14 +739,14 @@ function onDeviceMotion(event) {
 }
 
 function handleGamepadInventoryNavigation(currentGamepad, delta) {
-    const items = Array.from(document.querySelectorAll('#inventory-weapons-list .inventory-item'));
+    const items = Array.from(document.querySelectorAll('#inventory-weapons-list .inventory-item, #inventory-items-list .inventory-item'));
     if (items.length === 0) return;
 
     if (gamepadInvSelectedIndex >= items.length) gamepadInvSelectedIndex = 0;
 
     gamepadInvDebounceTimer -= delta;
 
-    const stickY = currentGamepad.axes[1];
+    const stickY = currentGamepad.axes[1] || currentGamepad.axes[3] || 0;
     const dpadUp = currentGamepad.buttons[12]?.pressed;
     const dpadDown = currentGamepad.buttons[13]?.pressed;
 
@@ -767,16 +771,79 @@ function handleGamepadInventoryNavigation(currentGamepad, delta) {
         }
     });
 
+    // Button 0 (X / Cross) = Valitse varuste/ase
     const btnAJustPressed = currentGamepad.buttons[0]?.pressed && !gamepadPrevButtons[0];
     if (btnAJustPressed) {
         const selectedItem = items[gamepadInvSelectedIndex];
-        if (selectedItem && selectedItem.dataset.weaponIndex !== undefined) {
-            const wIdx = parseInt(selectedItem.dataset.weaponIndex, 10);
-            if (player.unlockedWeapons[wIdx]) {
-                setActiveWeapon(wIdx);
-                toggleInventoryMenu();
+        if (selectedItem) {
+            if (selectedItem.dataset.weaponIndex !== undefined) {
+                const wIdx = parseInt(selectedItem.dataset.weaponIndex, 10);
+                if (player.unlockedWeapons[wIdx]) {
+                    setActiveWeapon(wIdx);
+                    toggleInventoryMenu();
+                }
+            } else if (selectedItem.dataset.itemKey === 'xray_goggles') {
+                toggleGoggles();
+                updateInventoryMenu();
             }
         }
+    }
+}
+
+function handleGamepadOptionsNavigation(currentGamepad, delta) {
+    const focusableElements = Array.from(document.querySelectorAll('#options-content button, #options-content input[type="range"]'));
+    if (focusableElements.length === 0) return;
+
+    if (gamepadOptSelectedIndex >= focusableElements.length) gamepadOptSelectedIndex = 0;
+
+    gamepadOptDebounceTimer -= delta;
+
+    const stickY = currentGamepad.axes[1] || currentGamepad.axes[3] || 0;
+    const stickX = currentGamepad.axes[0] || currentGamepad.axes[2] || 0;
+    const dpadUp = currentGamepad.buttons[12]?.pressed;
+    const dpadDown = currentGamepad.buttons[13]?.pressed;
+    const dpadLeft = currentGamepad.buttons[14]?.pressed;
+    const dpadRight = currentGamepad.buttons[15]?.pressed;
+
+    if (gamepadOptDebounceTimer <= 0) {
+        if (dpadDown || stickY > 0.5) {
+            gamepadOptSelectedIndex = (gamepadOptSelectedIndex + 1) % focusableElements.length;
+            gamepadOptDebounceTimer = 0.2;
+        } else if (dpadUp || stickY < -0.5) {
+            gamepadOptSelectedIndex = (gamepadOptSelectedIndex - 1 + focusableElements.length) % focusableElements.length;
+            gamepadOptDebounceTimer = 0.2;
+        }
+    }
+
+    focusableElements.forEach((el, idx) => {
+        if (idx === gamepadOptSelectedIndex) {
+            el.style.outline = '3px solid #00ffff';
+            el.style.boxShadow = '0 0 10px #00ffff';
+            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else {
+            el.style.outline = 'none';
+            el.style.boxShadow = 'none';
+        }
+    });
+
+    const currentEl = focusableElements[gamepadOptSelectedIndex];
+
+    // Jos valittuna on liukukytkin (Volume/Separation slider)
+    if (currentEl && currentEl.tagName === 'INPUT' && currentEl.type === 'range') {
+        const step = parseFloat(currentEl.step) || 0.05;
+        if (dpadLeft || stickX < -0.5) {
+            currentEl.value = Math.max(parseFloat(currentEl.min), parseFloat(currentEl.value) - step);
+            currentEl.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (dpadRight || stickX > 0.5) {
+            currentEl.value = Math.min(parseFloat(currentEl.max), parseFloat(currentEl.value) + step);
+            currentEl.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    // Button 0 (X / Cross) = Klikkaa painiketta
+    const btnAJustPressed = currentGamepad.buttons[0]?.pressed && !gamepadPrevButtons[0];
+    if (btnAJustPressed && currentEl && currentEl.tagName === 'BUTTON') {
+        currentEl.click();
     }
 }
 
@@ -832,6 +899,7 @@ function updateGamepadControls(delta) {
     const isInvMenuOpen = invMenu && invMenu.style.display.includes('flex');
     const isMapOpen = mapContainer && mapContainer.style.display === 'flex';
 
+    // BUTTON 1 (Circle / B / Ympyrä): Avaa ja sulkee Inventoryn sekä sulkee ikkunat
     if (isJustPressed(1)) {
         if (isGamepadMenuOpen) {
             gamepadMenu.style.display = 'none';
@@ -843,6 +911,9 @@ function updateGamepadControls(delta) {
             toggleInventoryMenu();
         } else if (isMapOpen) {
             mapContainer.style.display = 'none';
+        } else {
+            // Pelitilassa ympyränappi avaa Inventory-valikon
+            toggleInventoryMenu();
         }
     }
 
@@ -854,11 +925,20 @@ function updateGamepadControls(delta) {
         return;
     }
 
-    if (isJustPressed(3)) {
-        toggleInventoryMenu();
+    if (isOptionsMenuOpen) {
+        handleGamepadOptionsNavigation(currentGamepad, delta);
+        for (let i = 0; i < currentGamepad.buttons.length; i++) {
+            gamepadPrevButtons[i] = currentGamepad.buttons[i]?.pressed || false;
+        }
+        return;
     }
 
-    // GAMEPAD NELIÖ (Button X / Button 2) - Avaa ja piirtää kartan heti
+    // BUTTON 3 (Triangle / Kolmio): AINOASTAAN X-Ray Goggles Toggle (On/Off)
+    if (isJustPressed(3)) {
+        toggleGoggles();
+    }
+
+    // BUTTON 2 (Square / Neliö): Avaa ja piirtää kartan
     if (isJustPressed(2)) {
         if (mapContainer) {
             if (mapContainer.style.display === 'flex') {
@@ -872,6 +952,7 @@ function updateGamepadControls(delta) {
         }
     }
 
+    // BUTTON 9 (Options / Start): Avaa/sulkee Options-valikon
     if (isJustPressed(9)) {
         toggleOptionsMenu();
     }
@@ -912,6 +993,7 @@ function updateGamepadControls(delta) {
     keys['KeyW'] = moveY < -deadzone;
     keys['KeyS'] = moveY > deadzone;
 
+    // Button 0 (A / Cross): Hyppy / Jetpack
     keys['Space'] = currentGamepad.buttons[0]?.pressed || false;
 
     const weaponData = GameData.weapons[player.currentWeaponIndex];
