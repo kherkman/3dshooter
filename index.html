@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Robot Attack 3D FPS</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <!-- FAVICON 404-VIRHEEN KORJAUS -->
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: Creepster for Horror Theme + Preconnect FOUT-välähdyksen estämiseksi -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- CONTAINER FOR LEVEL START NOTIFICATIONS -->
+    <div id="level-notification-container"></div>
+
+    <div id="blocker" class="overlay">
+        <div id="instructions" class="menu-box">
+            <h1 class="menu-header horror-title">
+                <span>Robot Attack 3D FPS</span>
+                <button id="close-intro" class="header-close-button">&times;</button>
+            </h1>
+
+            <!-- CANVAS FOR LEVEL PROGRESSION IN INTRO (Piilotettu alussa) -->
+            <canvas id="level-progression-intro" width="400" height="50" style="margin-top: 15px; margin-bottom: 15px; background: rgba(0,0,0,0.4); border: 1px solid #ff3300; display: none;"></canvas>
+            
+            <p id="intro-story" style="font-size: 18px; margin-bottom: 20px; display: none;">The enemy robots have attacked your city. Find a spacecraft and get away!</p>
+            
+            <div id="intro-controls" class="controls-list-intro" style="display: none;">
+                <p><strong>Move:</strong> W, A, S, D</p>
+                <p><strong>Jump / Jetpack:</strong> SPACE</p>
+                <p><strong>Shoot:</strong> LEFT CLICK</p>
+                <p><strong>Switch Weapon:</strong> Q / E</p>
+                <p><strong>Inventory:</strong> R</p>
+                <p><strong>Interact:</strong> F</p>
+                <p><strong>Map:</strong> HOLD TAB</p>
+                <p><strong>Options:</strong> O / ESC</p>
+            </div>
+
+            <p id="intro-cta" style="font-size: 26px; margin-top: 25px; font-family: 'Creepster', cursive; letter-spacing: 2px; color: #ff3300;">Click or Press SPACE to Reveal Mission</p>
+            
+            <div class="options-buttons" style="margin-top: 20px;">
+                 <button id="show-touch-controls-intro">Show Touch Controls</button>
+                 <button id="options-button-intro">Options</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="options-menu" class="overlay">
+        <div id="options-content" class="menu-box">
+            <h1>OPTIONS</h1>
+            <div class="options-grid">
+                <div>
+                    <h2>CONTROLS</h2>
+                    <p><strong>Move:</strong> W, A, S, D</p>
+                    <p><strong>Jump / Jetpack:</strong> SPACE</p>
+                    <p><strong>Shoot:</strong> LEFT CLICK</p>
+                    <p><strong>Switch Weapon:</strong> Q / E</p>
+                    <p><strong>Inventory:</strong> R</p>
+                    <p><strong>Interact:</strong> F</p>
+                    <p><strong>Map:</strong> HOLD TAB</p>
+                    <p><strong>Options:</strong> O / ESC</p>
+                </div>
+                <div>
+                    <h2>AUDIO & VIDEO</h2>
+                    <p><label for="sfx-volume">Sound FX Volume</label></p>
+                    <input type="range" id="sfx-volume" class="volume-slider" min="0" max="1" step="0.05">
+                    <p><label for="music-volume">Music Volume</label></p>
+                    <input type="range" id="music-volume" class="volume-slider" min="0" max="1" step="0.05">
+                    <p><label for="sbs-separation">3D Camera Separation</label></p>
+                    <input type="range" id="sbs-separation" class="volume-slider" min="0.01" max="0.20" step="0.005" value="0.064">
+                </div>
+            </div>
+            <div class="options-buttons">
+                <button id="show-touch-controls-options">Show Touch Controls</button>
+                <button id="show-gamepad-controls-options">Show Gamepad Controls</button>
+                <button id="toggle-touch-button">Touch Controls: ON</button>
+                <button id="toggle-touch-look-button" class="options-button">Motion Look: OFF</button> 
+                <button id="sbs-3d-button">Side-by-Side 3D: OFF</button>
+                <button id="retro-effect-button">Retro Effect: OFF</button>
+                <button id="toggle-textures-button">Textures: ON</button>
+                <button id="fullscreen-button">Toggle Fullscreen</button>
+                <button id="restart-button-options">Restart Game</button>
+                <button id="close-options">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="touch-controls-menu" class="overlay" style="display: none;">
+        <div id="touch-controls-content" class="menu-box">
+            <h1 class="menu-header">
+                <span>TOUCH CONTROLS</span>
+                <button id="close-touch-controls-x" class="header-close-button" onclick="document.getElementById('touch-controls-menu').style.display='none'">&times;</button>
+            </h1>
+
+            <div id="touch-screen-layout">
+                <div id="touch-diagram">
+                    <div class="touch-zone move-zone">
+                        <p>MOVE</p>
+                        <span>(Left 30%)</span>
+                    </div>
+                    <div class="touch-zone action-zone">
+                        <div class="action-sub-zone jump-zone"><p>JUMP / JETPACK</p></div>
+                        <div class="action-sub-zone shoot-zone"><p>SHOOT</p></div>
+                        <span>(Center 40%)</span>
+                    </div>
+                    <div class="touch-zone look-zone">
+                        <p>LOOK</p>
+                        <span>(Right 30%)</span>
+                    </div>
+                </div>
+                <div id="touch-hud-area-label">
+                    <p>HUD AREA</p>
+                </div>
+            </div>
+
+            <div class="options-grid" style="margin-top: 20px;">
+                <div>
+                    <h2>CONTROLS</h2>
+                    <p><strong>Move:</strong> Drag in the left zone.</p>
+                    <p><strong>Look:</strong> Drag in the right zone.</p>
+                    <p><strong>Jump / Jetpack:</strong> Tap the top-center of the screen.</p>
+                    <p><strong>Shoot:</strong> Tap/Hold bottom-center or the weapon icon on the HUD.</p>
+                </div>
+                 <div>
+                    <h2>HUD BUTTONS</h2>
+                    <p><strong>Switch Weapon:</strong> Use the &lt; and &gt; buttons on the HUD.</p>
+                    <p><strong>Goggles:</strong> Tap the goggles icon on the HUD to toggle.</p>
+                    <p><strong>Inventory:</strong> Use the INV button on the HUD.</p>
+                    <p><strong>Interact:</strong> Tap the on-screen text prompts.</p>
+                </div>
+            </div>
+            <div class="options-buttons">
+                <button id="close-touch-controls">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="gamepad-controls-menu" class="overlay" style="display: none;">
+        <div id="gamepad-controls-content" class="menu-box">
+            <h1 class="menu-header">
+                <span>GAMEPAD CONTROLS</span>
+                <button id="close-gamepad-controls-x" class="header-close-button" onclick="document.getElementById('gamepad-controls-menu').style.display='none'">&times;</button>
+            </h1>
+            
+            <!-- GRAAFINEN GAMEPAD-DIAGRAMMI -->
+            <div id="gamepad-diagram-container">
+                <svg viewBox="0 0 600 230" class="gamepad-svg">
+                    <!-- Gamepad Runko -->
+                    <path d="M 180 60 Q 220 50 300 50 Q 380 50 420 60 C 470 70 530 120 510 210 C 495 245 440 240 400 190 Q 350 170 300 170 Q 250 170 200 190 C 160 240 105 245 90 210 C 70 120 130 70 180 60 Z" fill="#181410" stroke="#ffaa00" stroke-width="3"/>
+                    
+                    <!-- Vasen Tatti -->
+                    <circle cx="210" cy="150" r="26" fill="#111" stroke="#ffaa00" stroke-width="2"/>
+                    <circle cx="210" cy="150" r="16" fill="#333" stroke="#ff8800" stroke-width="1"/>
+                    
+                    <!-- Oikea Tatti -->
+                    <circle cx="390" cy="150" r="26" fill="#111" stroke="#ffaa00" stroke-width="2"/>
+                    <circle cx="390" cy="150" r="16" fill="#333" stroke="#ff8800" stroke-width="1"/>
+
+                    <!-- D-Pad -->
+                    <path d="M 175 100 H 185 V 90 H 195 V 100 H 205 V 110 H 195 V 120 H 185 V 110 H 175 Z" fill="#333" stroke="#ffaa00" stroke-width="2"/>
+
+                    <!-- Napit (Y, X, A, B) -->
+                    <circle cx="410" cy="85" r="9" fill="#222" stroke="#00ffff" stroke-width="2"/>
+                    <text x="410" y="88" font-family="Courier New" font-weight="bold" font-size="10" fill="#00ffff" text-anchor="middle">Y</text>
+                    
+                    <circle cx="392" cy="103" r="9" fill="#222" stroke="#ff3300" stroke-width="2"/>
+                    <text x="392" y="106" font-family="Courier New" font-weight="bold" font-size="10" fill="#ff3300" text-anchor="middle">X</text>
+
+                    <circle cx="410" cy="121" r="9" fill="#222" stroke="#00ff00" stroke-width="2"/>
+                    <text x="410" y="124" font-family="Courier New" font-weight="bold" font-size="10" fill="#00ff00" text-anchor="middle">A</text>
+
+                    <circle cx="428" cy="103" r="9" fill="#222" stroke="#ffcc00" stroke-width="2"/>
+                    <text x="428" y="106" font-family="Courier New" font-weight="bold" font-size="10" fill="#ffcc00" text-anchor="middle">B</text>
+
+                    <!-- Olkanapit (LB/RB) -->
+                    <rect x="150" y="30" width="65" height="16" rx="4" fill="#333" stroke="#ffaa00" stroke-width="2"/>
+                    <text x="182" y="42" font-family="Courier New" font-weight="bold" font-size="10" fill="#ffaa00" text-anchor="middle">LB / L1</text>
+
+                    <rect x="385" y="30" width="65" height="16" rx="4" fill="#333" stroke="#ffaa00" stroke-width="2"/>
+                    <text x="417" y="42" font-family="Courier New" font-weight="bold" font-size="10" fill="#ffaa00" text-anchor="middle">RB / R1</text>
+
+                    <!-- Liipaisimet (LT/RT) -->
+                    <rect x="160" y="8" width="45" height="15" rx="3" fill="#333" stroke="#ff3300" stroke-width="2"/>
+                    <text x="182" y="19" font-family="Courier New" font-weight="bold" font-size="9" fill="#ff3300" text-anchor="middle">LT / L2</text>
+
+                    <rect x="395" y="8" width="45" height="15" rx="3" fill="#222" stroke="#ff3300" stroke-width="2"/>
+                    <text x="417" y="19" font-family="Courier New" font-weight="bold" font-size="9" fill="#ff3300" text-anchor="middle">RT / R2</text>
+
+                    <!-- Osoitinviivat ja Tekstit -->
+                    <!-- LT: INTERACT / ACTION -->
+                    <polyline points="160,15 110,12 70,12" fill="none" stroke="#ff3300" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="65" y="15" font-family="Courier New" font-weight="bold" font-size="10" fill="#ff3300" text-anchor="end">LT: INTERACT / ACTION</text>
+
+                    <!-- RT: SHOOT -->
+                    <polyline points="440,15 480,12 530,12" fill="none" stroke="#ff3300" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="535" y="15" font-family="Courier New" font-weight="bold" font-size="11" fill="#ff3300" text-anchor="start">RT: SHOOT</text>
+
+                    <!-- RB: NEXT WEAPON -->
+                    <polyline points="450,38 490,38 530,38" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="535" y="41" font-family="Courier New" font-size="10" fill="#ffaa00" text-anchor="start">RB: NEXT WEAPON</text>
+
+                    <!-- LB: PREV WEAPON -->
+                    <polyline points="150,38 110,38 70,38" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="65" y="41" font-family="Courier New" font-size="10" fill="#ffaa00" text-anchor="end">LB: PREV WEAPON</text>
+
+                    <!-- LEFT STICK: MOVE -->
+                    <polyline points="184,150 120,150 70,150" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="65" y="153" font-family="Courier New" font-weight="bold" font-size="10" fill="#ffaa00" text-anchor="end">L-STICK: MOVE</text>
+
+                    <!-- D-PAD: INV NAV -->
+                    <polyline points="175,105 110,105 70,105" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="65" y="108" font-family="Courier New" font-size="10" fill="#ffaa00" text-anchor="end">D-PAD: INV NAV</text>
+
+                    <!-- RIGHT STICK: LOOK -->
+                    <polyline points="416,150 480,150 530,150" fill="none" stroke="#ffaa00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="535" y="153" font-family="Courier New" font-weight="bold" font-size="10" fill="#ffaa00" text-anchor="start">R-STICK: LOOK / AIM</text>
+
+                    <!-- Y / TRIANGLE: INV -->
+                    <polyline points="419,85 470,75 530,75" fill="none" stroke="#00ffff" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="535" y="78" font-family="Courier New" font-weight="bold" font-size="10" fill="#00ffff" text-anchor="start">Y / △: INVENTORY</text>
+
+                    <!-- B / CIRCLE: CLOSE -->
+                    <polyline points="437,103 480,100 530,100" fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="535" y="103" font-family="Courier New" font-size="10" fill="#ffcc00" text-anchor="start">B / ○: CLOSE WINDOWS</text>
+
+                    <!-- A / CROSS: JUMP -->
+                    <polyline points="419,121 470,125 530,125" fill="none" stroke="#00ff00" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="535" y="128" font-family="Courier New" font-size="10" fill="#00ff00" text-anchor="start">A / ✕: JUMP / JETPACK</text>
+
+                    <!-- X / SQUARE: MAP -->
+                    <polyline points="383,103 340,90 300,90" fill="none" stroke="#ff3300" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <circle cx="300" cy="90" r="3" fill="#ff3300"/>
+                    <text x="300" y="82" font-family="Courier New" font-weight="bold" font-size="10" fill="#ff3300" text-anchor="middle">X / □: MAP</text>
+                </svg>
+            </div>
+
+            <div class="options-grid" style="margin-top: 15px;">
+                <div>
+                    <h2>MOVEMENT & LOOK</h2>
+                    <p><strong>Move:</strong> Left Stick</p>
+                    <p><strong>Look / Aim:</strong> Right Stick</p>
+                    <p><strong>Jump / Jetpack:</strong> Button A / Cross (Button 0)</p>
+                    <p><strong>Close Windows:</strong> Button B / Circle / O (Button 1)</p>
+                </div>
+                <div>
+                    <h2>ACTIONS & NAVIGATION</h2>
+                    <p><strong>Interact / Action:</strong> Left Trigger / LT / L2 (Button 6)</p>
+                    <p><strong>Shoot:</strong> Right Trigger / RT / R2 (Button 7)</p>
+                    <p><strong>Map:</strong> Button X / Square (Button 2)</p>
+                    <p><strong>Inventory (INV):</strong> Button Y / Triangle (Button 3)</p>
+                    <p><strong>Previous Weapon:</strong> Left Bumper / LB / L1 (Button 4)</p>
+                    <p><strong>Next Weapon:</strong> Right Bumper / RB / R1 (Button 5)</p>
+                </div>
+            </div>
+            <div class="options-buttons">
+                <button id="close-gamepad-controls">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="inventory-menu" class="overlay">
+        <div id="inventory-content" class="menu-box">
+            <h1 class="menu-header">
+                <span>INVENTORY [R]</span>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <button id="options-button-inventory" class="hud-button" style="width: auto; height: 40px; font-size: 16px; padding: 5px 15px; background: rgba(255, 170, 0, 0.4); border: 2px solid #ffaa00; border-radius: 5px; color: #fff; cursor: pointer;">Options</button>
+                    <button id="close-inventory" class="header-close-button">&times;</button>
+                </div>
+            </h1>
+            <div id="inventory-grid">
+                <div class="inventory-section">
+                    <div id="inventory-weapons-list"></div>
+                    <br>
+                    <h2>ITEMS</h2>
+                    <div id="inventory-items-list"></div>
+                </div>
+                <div class="inventory-section" id="inventory-map-section">
+                    <h2>MISSION PROGRESS</h2>
+                    <canvas id="level-progression-inventory" width="400" height="50" style="margin-bottom: 15px; background: rgba(0,0,0,0.2); border: 1px solid #ffaa00;"></canvas>
+                    <h2>SECTOR MAP</h2>
+                    <canvas id="inventory-map-canvas" width="400" height="400"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="debug-menu" class="overlay">
+        <div id="debug-content" class="menu-box">
+            <h1>DEVELOPER CONSOLE</h1>
+            <div class="debug-grid">
+                <div class="debug-section"><h2>LEVELS</h2><div id="level-list"></div></div>
+                <div class="debug-section"><h2>ITEMS</h2><div id="item-list"></div></div>
+                <div class="debug-section"><h2>WEAPONS</h2><div id="weapon-list"></div></div>
+                <div class="debug-section"><h2>ENTITIES</h2><div id="entity-list"></div></div>
+                <div class="debug-section preview-section">
+                    <h2>PREVIEW</h2>
+                    <canvas id="preview-canvas"></canvas>
+                    <div id="preview-controls"></div>
+                    <div id="preview-description"></div>
+                    <div id="preview-slider-container">
+                        <div><label for="preview-zoom-slider">Zoom</label><br><input type="range" id="preview-zoom-slider" class="preview-slider" min="0.5" max="15" step="0.1" value="3"></div>
+                        <div><label for="preview-pan-slider">Pan Vertical</label><br><input type="range" id="preview-pan-slider" class="preview-slider" min="-1.5" max="2.5" step="0.1" value="0.5"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="options-buttons"><button id="close-debug">Close (J)</button></div>
+            <div id="debug-scrollbar-track"><div id="debug-scrollbar-thumb"></div></div>
+        </div>
+    </div>
+    
+    <div id="item-pickup-notification"></div>
+    <div id="retro-overlay"></div>
+    <div id="fuzzy-vision-overlay"></div>
+    <div id="damage-flash"></div>
+    <div id="map-container"><canvas id="map-canvas" width="500" height="500"></canvas></div>
+    <div id="interaction-prompt"></div>
+    <div id="cockpit-overlay"></div>
+    <div id="worm-attack-overlay"></div>
+
+    <button id="exit-vehicle-button" class="hud-button">EXIT</button>
+
+    <div id="doom-hud">
+        <div class="hud-panel hud-left">
+            <button id="inventory-button-hud" class="hud-button">INV</button>
+            <div id="fuel-cell-hud" class="hud-item-container">
+                <canvas id="fuel-cell-icon"></canvas>
+                <span id="fuel-cells">0</span>
+            </div>
+            <div id="goggles-hud-container" class="hud-item-container">
+                <canvas id="goggles-icon"></canvas>
+                <div id="goggles-bar-container">
+                    <div id="goggles-bar"></div>
+                </div>
+            </div>
+        </div>
+        <div class="hud-panel hud-center">
+            <div id="attack-indicator-container">
+                <div id="attack-indicator-horizontal"></div>
+                <div id="attack-indicator-vertical"></div>
+            </div>
+            <div id="compass-container">
+                <div id="compass-arrow"></div>
+                <span id="compass-distance"></span>
+            </div>
+            <canvas id="health-icon"></canvas>
+            <span id="health">100</span>
+            <div id="jetpack-hud-container">
+                <canvas id="jetpack-icon"></canvas>
+                <div id="jetpack-bar-container"><div id="jetpack-bar"></div></div>
+            </div>
+        </div>
+        <div class="hud-panel hud-right">
+            <button id="weapon-prev-hud" class="hud-button">&lt;</button>
+            <div id="weapon-display-container"></div>
+            <button id="weapon-next-hud" class="hud-button">&gt;</button>
+            <span id="ammo">&infin;</span>
+        </div>
+    </div>
+
+    <div id="crosshair"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script src="game-data.js"></script>
+    <script src="game-weapons.js"></script>
+    <script src="game-enemies.js"></script>
+    <script src="game-world.js"></script>
+    
+    <script src="player-controls.js"></script>
+    <script src="ui-and-hud.js"></script>
+    <script src="game-logic.js"></script>
+    
+    <script src="main.js"></script>
+
+    <!-- Dynamic Victory Screen & Music Handler -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const blocker = document.getElementById('blocker');
+            let winAudio = null;
+
+            const playWinMusic = () => {
+                // Stop base background level music if it is active
+                if (typeof backgroundMusic !== 'undefined' && backgroundMusic) {
+                    try {
+                        if (backgroundMusic.isPlaying && backgroundMusic.source) {
+                            backgroundMusic.stop();
+                        }
+                    } catch (e) {
+                        console.warn("Bypassed error during win music stop:", e);
+                    }
+                }
+                if (!winAudio) {
+                    winAudio = new Audio('music_finish.mp3');
+                    winAudio.loop = true;
+                    if (typeof gameSettings !== 'undefined' && gameSettings.musicVolume !== undefined) {
+                        winAudio.volume = gameSettings.musicVolume;
+                    } else {
+                        winAudio.volume = 0.2;
+                    }
+                }
+                winAudio.play().catch(err => console.warn('Could not play victory music:', err));
+            };
+
+            const stopWinMusic = () => {
+                if (winAudio) {
+                    winAudio.pause();
+                    winAudio.currentTime = 0;
+                }
+            };
+
+            if (blocker) {
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.type === 'childList') {
+                            const innerText = blocker.innerText || '';
+                            const isWin = blocker.querySelector('.menu-box') && 
+                                          !blocker.querySelector('#instructions') && 
+                                          (innerText.includes('Successfully Finished') || innerText.includes('Saved') || innerText.includes('SAVED'));
+                            
+                            if (isWin) {
+                                const menuBox = blocker.querySelector('.menu-box');
+                                if (menuBox) {
+                                    menuBox.id = 'win-screen-box';
+                                    const header = menuBox.querySelector('h1');
+                                    if (header) {
+                                        header.classList.add('win-header-spooky');
+                                    }
+                                }
+                                playWinMusic();
+                            } else {
+                                stopWinMusic();
+                            }
+                        }
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                            if (blocker.style.display === 'none') {
+                                stopWinMusic();
+                            }
+                        }
+                    });
+                });
+                observer.observe(blocker, { childList: true, attributes: true, attributeFilter: ['style'] });
+            }
+        });
+    </script>
+</body>
+</html>
