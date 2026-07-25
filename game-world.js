@@ -1145,18 +1145,20 @@ const GameWorld = {
                 };
 
                 // 4. KRISTALLIKONE / AIVOT HUIPPULLE (crystalbrain.jpg) & SÄKENÖIVÄT EFEKTIT
+                // TERÄVÄ JA SELKEÄ TEKSTUURI: neutraali emissive ja pienennetty metalness/roughness
                 const hasBrainTex = gameSettings.texturesEnabled && window.crystalBrainTexture;
                 const brainMat = new THREE.MeshStandardMaterial({
                     color: hasBrainTex ? 0xffffff : 0xff0088,
                     map: hasBrainTex ? window.crystalBrainTexture : null,
-                    emissive: hasBrainTex ? 0x331133 : 0xff00ff,
-                    emissiveIntensity: hasBrainTex ? 0.3 : 2.5,
-                    roughness: 0.3,
-                    metalness: 0.4
+                    emissive: hasBrainTex ? 0x111111 : 0xff00ff,
+                    emissiveIntensity: hasBrainTex ? 0.1 : 2.5,
+                    roughness: 0.25,
+                    metalness: 0.1
                 });
 
                 const brainGroup = new THREE.Group();
-                const brainCore = new THREE.Mesh(new THREE.IcosahedronGeometry(2.8, 2), brainMat);
+                // Tasainen pallogeometria varmistaa terävän ja venymättömän tekstuurikartoituksen
+                const brainCore = new THREE.Mesh(new THREE.SphereGeometry(2.8, 32, 32), brainMat);
                 brainCore.position.y = towerHeight + 3.5;
                 brainGroup.add(brainCore);
 
@@ -1213,11 +1215,11 @@ const GameWorld = {
                     );
                     const baseScale = Math.random() * 0.9 + 0.7;
                     p.scale.setScalar(baseScale);
-                    smokeParticles.push({ mesh: p, vel: vel, life: 2.2, maxLife: 2.2, baseScale: baseScale });
+                    smokeParticles.push({ mesh: p, vel: vel, life: 2.2, maxLife: 2.2, baseScale: baseScale, isPurpleSmoke: true });
                     scene.add(p);
                 };
 
-                // Jatkuva purppuran savun nousu koneesta
+                // Jatkuva purppuran savun nousu koneesta (tallennetaan viite brainBoxiin)
                 const brainSmokeInterval = setInterval(() => {
                     if (brainBox.userData.isDestroyed || typeof currentLevel === 'undefined' || currentLevel !== 'crystal') {
                         clearInterval(brainSmokeInterval);
@@ -1245,7 +1247,8 @@ const GameWorld = {
                     health: 300,
                     mesh: brainGroup,
                     fuelCellRef: topFuelCell,
-                    towerTopPos: new THREE.Vector3(towerPos.x, towerHeight + 0.8, towerPos.z)
+                    towerTopPos: new THREE.Vector3(towerPos.x, towerHeight + 0.8, towerPos.z),
+                    smokeInterval: brainSmokeInterval
                 };
                 buildingColliders.push(brainBox);
 
@@ -1968,3 +1971,4 @@ const GameWorld = {
         }
     }
 };
+
