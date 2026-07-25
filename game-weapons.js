@@ -655,7 +655,7 @@ GameData.weapons = [
                         let hitProp = false;
                         const hitPos = pPos.clone().add(pForward.clone().multiplyScalar(2.5));
 
-                        // 3a. Hajoavat propit (Roskikset, Katuvalot)
+                        // 3a. Hajoavat propit (Roskikset, Katuvalot) - Toistaa explosion.mp3
                         if (typeof buildingColliders !== 'undefined') {
                             for (let j = buildingColliders.length - 1; j >= 0; j--) {
                                 const c = buildingColliders[j];
@@ -687,7 +687,7 @@ GameData.weapons = [
                             }
                         }
 
-                        // 3c. Ikkunat
+                        // 3c. Ikkunat - Toistaa edelleen glass_break.mp3 (breakWindow-funktion kautta)
                         if (typeof cityWindows !== 'undefined' && cityWindows.length > 0) {
                             for (let i = 0; i < cityWindows.length; i++) {
                                 const win = cityWindows[i];
