@@ -29,6 +29,7 @@ const gameSettings = {
     sbs3dEnabled: false, 
     retroEffectEnabled: false, 
     sbsEyeSep: 0.064, 
+    sbsImageOffset: 0, // Vaakasuuntainen kuvan siirtymä/kohdistus (pixels)
     gyroLookEnabled: false,
     texturesEnabled: true
 };
@@ -1598,6 +1599,7 @@ function animate() {
     updateGun(delta);
     updateAttackIndicator();
     
+    // SBS 3D RENDERÖINTI VAAKASUUNTAISELLA KUVAN KOHDISTUKSELLA (Screen Image Offset)
     if (gameSettings.sbs3dEnabled) {
         const w = window.innerWidth;
         const h = window.innerHeight;
@@ -1606,12 +1608,16 @@ function animate() {
         stereoCamera.update(camera);
         renderer.setScissorTest(true);
 
-        renderer.setScissor(0, 0, w / 2, h);
-        renderer.setViewport(0, 0, w / 2, h);
+        const offsetPx = Math.round(gameSettings.sbsImageOffset || 0);
+
+        // Vasemman silmän viewport ja scissor - aluetta siirretään offsetPx verran
+        renderer.setScissor(0 - offsetPx, 0, w / 2, h);
+        renderer.setViewport(0 - offsetPx, 0, w / 2, h);
         renderer.render(scene, stereoCamera.cameraL);
         
-        renderer.setScissor(w / 2, 0, w / 2, h);
-        renderer.setViewport(w / 2, 0, w / 2, h);
+        // Oikean silmän viewport ja scissor - aluetta siirretään offsetPx verran toiseen suuntaan
+        renderer.setScissor(w / 2 + offsetPx, 0, w / 2, h);
+        renderer.setViewport(w / 2 + offsetPx, 0, w / 2, h);
         renderer.render(scene, stereoCamera.cameraR);
 
         renderer.setScissorTest(false);
