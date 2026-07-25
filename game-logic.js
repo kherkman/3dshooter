@@ -128,6 +128,7 @@ function createPurpleTriangleDebris(position) {
 /**
  * Vahingoittaa Crystal-kentän tornin huipulla olevaa kristallikonetta/aivoja.
  * Tuhoutuessaan se pudottaa koneen yläpuolella leijuvan Fuel Cellin alas tornin tasanteelle,
+ * pysäyttää savun ja poistaa kaikki olemassa olevat purppurat savupartikkelit välittömästi,
  * synnyttää lentäviä purppuroita kolmiokappaleita ja laukaisee näyttävän monivaiheisen sarjaräjähdyksen.
  * @param {THREE.Box3} collider
  * @param {THREE.Vector3} hitPos
@@ -145,6 +146,26 @@ function damageCrystalBrain(collider, hitPos, damageAmount = 10) {
 
     if (collider.userData.health <= 0) {
         collider.userData.isDestroyed = true;
+
+        // Pysäytetään purppuran savun synnyttäminen välittömästi
+        if (collider.userData.smokeInterval) {
+            clearInterval(collider.userData.smokeInterval);
+            collider.userData.smokeInterval = null;
+        }
+
+        // Poistetaan kaikki ilmassa jo leijuvat purppurat savupartikkelit heti
+        if (typeof smokeParticles !== 'undefined') {
+            for (let i = smokeParticles.length - 1; i >= 0; i--) {
+                if (smokeParticles[i].isPurpleSmoke) {
+                    if (smokeParticles[i].mesh) {
+                        scene.remove(smokeParticles[i].mesh);
+                        if (smokeParticles[i].mesh.geometry) smokeParticles[i].mesh.geometry.dispose();
+                        if (smokeParticles[i].mesh.material) smokeParticles[i].mesh.material.dispose();
+                    }
+                    smokeParticles.splice(i, 1);
+                }
+            }
+        }
 
         if (collider.userData.mesh) {
             scene.remove(collider.userData.mesh);
