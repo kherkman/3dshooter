@@ -52,32 +52,40 @@ function showPickupNotification(itemName) {
     }, 2500);
 }
 
+/**
+ * Generates 2D preview sprites for all weapon models and updates HUD image elements dynamically.
+ */
 function generateWeaponSprites() {
     const weaponDisplayContainer = document.getElementById('weapon-display-container');
     if (!weaponDisplayContainer) return;
     
-    weaponDisplayContainer.innerHTML = '';
     const spriteScene = new THREE.Scene();
     spriteScene.background = new THREE.Color(0xd3d3d3); 
     const spriteCam = new THREE.PerspectiveCamera(50, 2, 0.1, 100);
     spriteCam.position.set(0.5, 0.2, 2.5);
-    const light1 = new THREE.DirectionalLight(0xffffff, 1.0);
+    const light1 = new THREE.DirectionalLight(0xffffff, 1.2);
     light1.position.set(1, 1, 1);
-    const light2 = new THREE.AmbientLight(0xffffff, 0.5);
+    const light2 = new THREE.AmbientLight(0xffffff, 0.8);
     spriteScene.add(light1, light2);
     const tempRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     tempRenderer.setSize(240, 120); 
+
     GameData.weapons.forEach((weapon, index) => {
         const model = weapon.model(false);
-        model.position.set(0,0,0);
+        model.position.set(0, 0, 0);
         model.rotation.set(0.1, 0.2 + Math.PI / 2, 0); 
         spriteScene.add(model);
         tempRenderer.render(spriteScene, spriteCam);
-        const img = new Image();
+
+        let img = document.getElementById(`weapon-sprite-${index}`);
+        if (!img) {
+            img = new Image();
+            img.id = `weapon-sprite-${index}`;
+            img.className = 'weapon-hud-sprite';
+            weaponDisplayContainer.appendChild(img);
+        }
         img.src = tempRenderer.domElement.toDataURL();
-        img.id = `weapon-sprite-${index}`;
-        img.className = 'weapon-hud-sprite';
-        weaponDisplayContainer.appendChild(img);
+
         spriteScene.remove(model);
     });
     tempRenderer.dispose();
