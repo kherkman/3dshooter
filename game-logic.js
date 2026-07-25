@@ -15,13 +15,19 @@ const tempColCenter = new THREE.Vector3();
  * @param {THREE.Box3} objectBox The bounding box of the object to check.
  * @param {boolean} isProjectile Whether the collision check originates from a projectile.
  * @param {number} damageAmount Amount of damage inflicted if hitting a destructible entity.
+ * @param {boolean} isEnemy Whether the collision check originates from an enemy.
  * @returns {boolean} True if there is a collision, false otherwise.
  */
-function checkBuildingCollision(objectBox, isProjectile = true, damageAmount = 10) {
+function checkBuildingCollision(objectBox, isProjectile = true, damageAmount = 10, isEnemy = false) {
     objectBox.getCenter(tempObjCenter);
 
     for (let i = buildingColliders.length - 1; i >= 0; i--) {
         const collider = buildingColliders[i];
+
+        // Ohitetaan vihollisblokkerit, jos törmäyksen tarkistaja on pelaaja tai projektili
+        if (collider.userData && collider.userData.isEnemyBlocker && !isEnemy) {
+            continue;
+        }
 
         // Älykäs tilallinen etäisyyssuodatus: Huomioidaan kohteen oma koko culling-etäisyydessä!
         if (collider.isBox3) {
@@ -128,7 +134,7 @@ function createPurpleTriangleDebris(position) {
 /**
  * Vahingoittaa Crystal-kentän tornin huipulla olevaa kristallikonetta/aivoja.
  * Tuhoutuessaan se pudottaa koneen yläpuolella leijuvan Fuel Cellin alas tornin tasanteelle,
- * pysäyttää savun ja poistaa kaikki olemassa olevat purppurat savupartikkelit välittömästi,
+ * pysäyttää savun ja poistaa kaikki olemassa olevat purppurat savipartikkelit välittömästi,
  * synnyttää lentäviä purppuroita kolmiokappaleita ja laukaisee näyttävän monivaiheisen sarjaräjähdyksen.
  * @param {THREE.Box3} collider
  * @param {THREE.Vector3} hitPos
@@ -153,7 +159,7 @@ function damageCrystalBrain(collider, hitPos, damageAmount = 10) {
             collider.userData.smokeInterval = null;
         }
 
-        // Poistetaan kaikki ilmassa jo leijuvat purppurat savupartikkelit heti
+        // Poistetaan kaikki ilmassa jo leijuvat purppurat savipartikkelit heti
         if (typeof smokeParticles !== 'undefined') {
             for (let i = smokeParticles.length - 1; i >= 0; i--) {
                 if (smokeParticles[i].isPurpleSmoke) {
@@ -381,6 +387,13 @@ function spawnItem(itemKey) {
     const itemData = GameData.items[itemKey];
     if (!itemData) return;
 
+    // --- SPECIAL SPAWN LOGIC for City Fuel Cell ---
+    if (itemKey === 'fuel_cell' && currentLevel === 'city') {
+        if (collectibles.fuelCells.length >= 1) {
+            return;
+        }
+    }
+
     // --- SPECIAL SPAWN LOGIC for Volcanic Fuel Cells ---
     if (itemKey === 'fuel_cell' && currentLevel === 'volcanic' && levelObjects.pyramidTopPosition) {
         const group = itemData.model();
@@ -405,8 +418,6 @@ function spawnItem(itemKey) {
     
     // --- SPECIAL SPAWN LOGIC for Crystal Maze Fuel Cell ---
     if (itemKey === 'fuel_cell' && currentLevel === 'crystal') {
-        // Crystal-kentässä halutaan tasan 2 Fuel Celliä: 1 labyrintissä, 1 tornissa.
-        // Tarkistetaan puuttuuko maassa/labyrintissä oleva Fuel Cell (ohitetaan tornin huipulla leijuva)
         const hasMazeFuelCell = collectibles.fuelCells.some(fc => !fc.userData.isFloatingAboveBrain);
         if (!hasMazeFuelCell && levelObjects.mazeCenter) {
             const group = itemData.model();
@@ -421,15 +432,19 @@ function spawnItem(itemKey) {
     }
 
     // --- SPECIAL SPAWN LOGIC for Ice Castle Fuel Cell ---
-    if (itemKey === 'fuel_cell' && currentLevel === 'ice' && levelObjects.castleTowerTopPosition && collectibles.fuelCells.length === 0) {
-        const group = itemData.model();
-        group.position.copy(levelObjects.castleTowerTopPosition);
-        group.userData.key = itemKey;
-        group.userData.type = 'fuel_cell';
-        group.userData.fixedPosition = true;
-        collectibles.fuelCells.push(group);
-        scene.add(group);
-        return;
+    if (itemKey === 'fuel_cell' && currentLevel === 'ice') {
+        if (levelObjects.castleTowerTopPosition && collectibles.fuelCells.length === 0) {
+            const group = itemData.model();
+            group.position.copy(levelObjects.castleTowerTopPosition);
+            group.userData.key = itemKey;
+            group.userData.type = 'fuel_cell';
+            group.userData.fixedPosition = true;
+            collectibles.fuelCells.push(group);
+            scene.add(group);
+            return;
+        } else if (collectibles.fuelCells.length >= 2) {
+            return;
+        }
     }
 
     const group = itemData.model();
@@ -702,7 +717,6 @@ function updateCollectibles(delta) {
 
             p.rotation.y += 1 * delta;
 
-            // Jos kyseessä on Fuel Cell, joka leijuu koneen yläpuolella ennen sen tuhoutumista, pidetään se korkealla
             if (p.userData.isFloatingAboveBrain) {
                 // pidetään paikallaan ylhäällä
             } else if ((p.userData.type === 'fuel_cell' || p.userData.type === 'glowing_orb') && !p.userData.fixedPosition) {
